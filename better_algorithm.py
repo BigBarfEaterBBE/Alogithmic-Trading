@@ -14,6 +14,9 @@ from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
+import csv
+from datetime import datetime
+
 # LOAD API INFO
 import confidential
 API_KEY = confidential.ALPACA_API_KEY
@@ -24,6 +27,19 @@ trade_client = TradingClient(api_key = API_KEY, secret_key=SECRET_KEY, paper=Tru
 
 # INTIALIZING MARKET DATA CLIENT
 stock_data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+
+def log_trade(ticker, action, price, qty, profit=None):
+    with open("trades.csv", mode="a", newline="") as file:
+        writer = csv.writer(file)
+
+        writer.writerow([
+            datetime.now(),
+            ticker,
+            action,
+            price,
+            qty,
+            profit
+        ])
 
 def get_data(ticker):
     """
@@ -70,6 +86,21 @@ def sell_stock(ticker):
     except:
         pass
 
+def log_equity():
+    account = trade_client.get_account()
+
+    equity = float(account.equity)
+    cash = float(account.cash)
+
+    with open("equity.csv", mode="a", newline="") as file:
+        writer = csv.writer(file)
+
+        writer.writerow([
+            datetime.now(),
+            equity,
+            cash
+        ])
+
 # MAIN TRADING LOGIC
 tickers = ["NVDA", "GOOGL", "SPY", "DIA", "QQQ"]
 risk_percent = 0.05
@@ -90,6 +121,7 @@ for ticker in tickers:
     if row['buy_signal'] and shares == 0:
         trade_amount = balance * risk_percent
         buy_stock(ticker, trade_amount)
+        log_trade(ticker, "BUY", current_price, trade_amount)
         print(f"{ticker} BUY at {current_price}")
     
     # SCALE IN
@@ -99,7 +131,7 @@ for ticker in tickers:
         if drop <= -0.02:
             trade_amount = balance * risk_percent
             buy_stock(ticker, trade_amount)
-
+            log_trade(ticker, "ADD", current_price, trade_amount)
             print(f"{ticker} ADD at {current_price}")
     
     # SELL
@@ -107,6 +139,12 @@ for ticker in tickers:
         change = (current_price - avg_entry) / avg_entry
         
         if change >= 0.04 or change <= -0.3:
+            profit = (current_price - avg_entry) * shares
+            
             sell_stock(ticker)
 
-            print(f"{ticker} SELL at {current_price}")
+            log_trade(ticker, "SELL", current_price, shares, profit)
+
+            print(f"{ticker} SELL at {current_price} | Profit: {profit}")
+    
+    log_equity()
