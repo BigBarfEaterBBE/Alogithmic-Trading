@@ -1,0 +1,19 @@
+Devlog 1 5/1: 
+# Highlights:
+- Created a stock algorithm targeting temporary decreases in stock price
+- Connected the algorithm to my Alpaca paper trading account
+- Added functionality to log trades + profit for analysis
+
+# What I did:
+Originally I was following a tutorial for stock algorithms but the API the tutorial used had shut down so I pivoted to just winging it
+- I chose to trade NVDA, GOOGL, SPY, QQQ, DIA because they are large stocks
+- I had an issue with datatypes from Yahoo Finance but I fixed it by turning it into a pandas series
+- I formulated an agressive strategy to target dips in stock price and continue to buy more when it decreases (scaling in)
+- I redid the architecture by expanding it from just trading one stock to 5
+- I added trade and equity logging for later analysis
+
+# Changelog
+- e2cef54: Initial commit with README and license d84b1eb: Imported data from yfinance and formulated a basic trading strategy and added RSI indicator
+- 2ac8ecb: Made a more aggressive strategy, introduced position sizing to calculate how much to buy, and added scaling in
+- 06b8451: Expanded architecture to encompass multiple stocks, connected it to place orders and receive data from my paper trading account, coded all functionality for stocks (buying, selling, etc.)
+- cd5a7b3: Created system to log trades + equity changes to csv files image
