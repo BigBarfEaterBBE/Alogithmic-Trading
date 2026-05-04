@@ -19,14 +19,18 @@ from datetime import datetime
 
 # LOAD API INFO
 import confidential
-API_KEY = confidential.ALPACA_API_KEY
-SECRET_KEY = confidential.ALPACA_SECRET
+MR_API_KEY = confidential.MR_API_KEY
+MR_SECRET_KEY = confidential.MR_SECRET
+PB_API_KEY = confidential.PB_API_KEY
+PB_SECRET_KEY = confidential.PB_SECRET
+
 
 # INITIALIZING TRADING CLIENT
-trade_client = TradingClient(api_key = API_KEY, secret_key=SECRET_KEY, paper=True)
+mr_client = TradingClient(api_key = MR_API_KEY, secret_key=MR_SECRET_KEY, paper=True)
+pb_client = TradingClient(api_key = PB_API_KEY, secret_key=PB_SECRET_KEY, paper=True)
 
 # INTIALIZING MARKET DATA CLIENT
-stock_data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+stock_data_client = StockHistoricalDataClient(MR_API_KEY, MR_SECRET_KEY)
 
 
 def log_trade(ticker, action, price, qty, strategy, profit=None):
@@ -85,29 +89,29 @@ def add_indicators(df):
 
     return df
 
-def get_position(ticker):
+def get_position(client, ticker):
     try:
-        pos = trade_client.get_open_position(ticker)
+        pos = client.get_open_position(ticker)
         return float(pos.qty), float(pos.avg_entry_price)
     except:
         return 0,0
 
-def buy_stock(ticker, amount):
+def buy_stock(client, ticker, amount):
     amount = round(amount, 2)
     order = MarketOrderRequest(symbol=ticker, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
-    trade_client.submit_order(order)
+    client.submit_order(order)
 
-def sell_stock(ticker):
+def sell_stock(client,ticker):
     try:
-        pos = trade_client.get_open_position(ticker)
+        pos = client.get_open_position(ticker)
 
         order = MarketOrderRequest(symbol=ticker, qty=float(pos.qty), side=OrderSide.SELL, time_in_force=TimeInForce.DAY)
-        trade_client.submit_order(order)
+        client.submit_order(order)
     except:
         pass
 
-def log_equity():
-    account = trade_client.get_account()
+def log_equity(client, name):
+    account = client.get_account()
 
     equity = float(account.equity)
     cash = float(account.cash)
@@ -117,13 +121,14 @@ def log_equity():
 
         writer.writerow([
             datetime.now(),
+            name,
             equity,
             cash
         ])
 
-def sell_partial(ticker, fraction):
+def sell_partial(client, ticker, fraction):
     try:
-        pos = trade_client.get_open_position(ticker)
+        pos = client.get_open_position(ticker)
         qty = float(pos.qty)
         
         sell_qty = round(qty * fraction, 6)
@@ -134,60 +139,55 @@ def sell_partial(ticker, fraction):
             side=OrderSide.SELL,
             time_in_force = TimeInForce.DAY
         )
-        trade_client.submit_order(order)
+        client.submit_order(order)
     except:
         pass
 
 # MAIN TRADING LOGIC
 tickers = ["NVDA", "GOOGL", "SPY", "DIA", "QQQ"]
 risk_percent = 0.05
-strategy_split = 0.5
 
-account = trade_client.get_account()
-balance = float(account.cash)
+mr_balance = float(mr_client.get_account().cash)
+pb_balance = float(pb_client.get_account().cash)
 
 # ADD PARTIAL TRACKING
-partial_taken = {ticker: False for ticker in tickers}
+partial_taken_mr = {ticker: False for ticker in tickers}
+partial_taken_pb = {ticker: False for ticker in tickers}
+
+# DATA
+data_map = {}
 
 for ticker in tickers:
-    df = get_data(ticker)
-    df = add_indicators(df)
+    df = add_indicators(get_data(ticker))
+    data_map[ticker] = df
+
+# MEAN REVERSION LOOP
+for ticker in tickers:
+    df = data_map[ticker]
 
     row = df.iloc[-1] # ONLY the latest day
     current_price = row['close']
 
-    shares, avg_entry = get_position(ticker)
+    shares, avg_entry = get_position(mr_client, ticker)
 
     # BUY
-    if shares == 0:
-        # MEAN REVERSION
-        if row['mr_signal'] and shares == 0:
-            trade_amount = balance * risk_percent * strategy_split
-            buy_stock(ticker, trade_amount)
-            partial_taken[ticker] = False
-            log_trade(ticker, "BUY", current_price, trade_amount, "MEAN_REVERSION")
-            print(f"{ticker} MR BUY at {current_price}")
-        
-        # PULLBACK TREND
-        elif row['pb_signal']:
-            trade_amount = balance * strategy_split * risk_percent
-            buy_stock(ticker, trade_amount)
-
-            partial_taken[ticker] = False
-
-            log_trade(ticker, "BUY", current_price, trade_amount, "PULLBACK_TREND")
-            print(f"{ticker} PB BUY at {current_price}")
+    if shares == 0 and row['mr_signal']:
+        trade_amount = mr_balance * risk_percent
+        buy_stock(mr_client, ticker, trade_amount)
+        partial_taken_mr[ticker] = False
+        log_trade(ticker, "BUY", current_price, trade_amount, "MEAN_REVERSION")
+        print(f"{ticker} MR BUY at {current_price}")
     
     # SCALE IN
     elif shares > 0:
         drop = (current_price - avg_entry) / avg_entry
 
         if drop <= -0.02:
-            trade_amount = balance * risk_percent
-            buy_stock(ticker, trade_amount)
+            trade_amount = mr_balance * risk_percent
+            buy_stock(mr_client, ticker, trade_amount)
             log_trade(ticker, "ADD", current_price, trade_amount, "SCALE")
             print(f"{ticker} ADD at {current_price}")
-    
+    mr_balance = float(mr_client.get_account().cash)
     # SELL
     if shares > 0:
         atr = row['atr']
@@ -198,38 +198,84 @@ for ticker in tickers:
         # Implementing partial profit levels
         tp1 = avg_entry * 1.02 # +2 %
         tp2 = avg_entry * 1.04 # +4 %
-
-        # PARTIAL TAKE PROFIT
-        if current_price >= tp1 and not partial_taken[ticker]:
-            sell_partial(ticker, 0.5)
-
-            partial_taken[ticker] = True
-
-            log_trade(ticker, "PARTIAL SELL", current_price, shares * 0.5, "UNKNOWN")
-            print(f"{ticker} PARTIAL SELL at {current_price}")
         
         # FULL TAKE PROFIT
-        elif current_price >= tp2:
+        if current_price >= tp2:
             profit = (current_price - avg_entry) * shares
 
-            sell_stock(ticker)
+            sell_stock(mr_client, ticker)
 
-            partial_taken[ticker] = False
+            partial_taken_mr[ticker] = False
 
-            log_trade(ticker, "SELL", current_price, shares, "UNKNOWN", profit)
+            log_trade(ticker, "SELL", current_price, shares, "MEAN_REVERSION", profit)
 
             print(f"{ticker} FULL SELL at {current_price} | Profit: {profit}")
+
+        # PARTIAL TAKE PROFIT
+        elif current_price >= tp1 and not partial_taken_mr[ticker]:
+            sell_partial(mr_client, ticker, 0.5)
+
+            partial_taken_mr[ticker] = True
+
+            log_trade(ticker, "PARTIAL SELL", current_price, shares * 0.5, "MEAN_REVERSION")
+            print(f"{ticker} PARTIAL SELL at {current_price}")
         
         # STOP LOSS 
         elif current_price <= stop_price:
             profit = (current_price - avg_entry) * shares
 
-            sell_stock(ticker)
-            partial_taken[ticker] = False
+            sell_stock(mr_client, ticker)
+            partial_taken_mr[ticker] = False
 
-            log_trade(ticker, "STOP LOSS", current_price, shares, "UNKNOWN", profit)
+            log_trade(ticker, "STOP LOSS", current_price, shares, "MEAN_REVERSION", profit)
 
             print(f"{ticker} STOP LOSS at {current_price} | Profit: {profit}")
-    account = trade_client.get_account()
-    balance = float(account.cash)
-    log_equity()
+    mr_balance = float(mr_client.get_account().cash)
+    log_equity(mr_client, "MR")
+
+for ticker in tickers:
+    df = data_map[ticker]
+
+    row = df.iloc[-1]
+    price = row['close']
+
+    shares, avg_entry = get_position(pb_client, ticker)
+
+    # BUY
+    if shares == 0 and row['pb_signal']:
+        trade_amount = pb_balance * risk_percent
+        buy_stock(pb_client, ticker, trade_amount)
+        partial_taken_pb[ticker] = False
+        log_trade(ticker, "BUY", price, trade_amount, "PULLBACK_TREND")
+        print(f"{ticker} PB BUY at {price}")
+    
+    # SCALE
+    elif shares > 0:
+        drop = (price- avg_entry) / avg_entry
+        if drop <= -0.02:
+            trade_amount = pb_balance * risk_percent
+            buy_stock(pb_client, ticker, trade_amount)
+            log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
+    pb_balance = float(mr_client.get_account().cash)
+    # SELL
+    if shares > 0:
+        atr = row['atr']
+        stop_price = avg_entry - (atr * 2)
+        tp1 = avg_entry * 1.02
+        tp2 = avg_entry * 1.04
+
+        if price >= tp2:
+            profit = (price - avg_entry) * shares
+            sell_stock(pb_client, ticker)
+            log_trade(ticker, "SELL", price, shares, "PULLBACK_TREND", profit)
+
+        elif price >= tp1 and not partial_taken_pb[ticker]:
+            sell_partial(pb_client, ticker, 0.5)
+
+            partial_taken_pb[ticker] = True
+            log_trade(ticker, "PARTIAL SELL", price, shares * 0.5, "PULLBACK_TREND")
+        
+        elif price <= stop_price:
+            profit = (price-avg_entry) * shares
+            sell_stock(pb_client,ticker)
+            log_trade(ticker, "STOP LOSS", price, shares, "PULLBACK_TREND", profit)
