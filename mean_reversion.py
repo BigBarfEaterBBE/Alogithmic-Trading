@@ -34,7 +34,7 @@ stock_data_client = StockHistoricalDataClient(MR_API_KEY, MR_SECRET_KEY)
 
 
 def log_trade(ticker, action, price, qty, strategy, profit=None):
-    with open("trades.csv", mode="a", newline="") as file:
+    with open("dashboard/trades.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
         writer.writerow([
@@ -116,7 +116,7 @@ def log_equity(client, name):
     equity = float(account.equity)
     cash = float(account.cash)
 
-    with open("equity.csv", mode="a", newline="") as file:
+    with open("dashboard/equity.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
         writer.writerow([

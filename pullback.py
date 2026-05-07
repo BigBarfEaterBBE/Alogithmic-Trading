@@ -12,6 +12,7 @@ from alpaca.trading.requests import MarketOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 
 from alpaca.data.historical.stock import StockHistoricalDataClient
+from alpaca.data.enums import DataFeed
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
@@ -32,7 +33,7 @@ TIMEZONE = ZoneInfo("America/New_York")
 
 # INITIALIZING CLIENTS
 pb_client = TradingClient(api_key = PB_API_KEY, secret_key=PB_SECRET_KEY, paper=True)
-stock_data_client = StockHistoricalDataClient(PB_API_KEY, PB_SECRET_KEY)
+stock_data_client = StockHistoricalDataClient(PB_API_KEY, PB_SECRET_KEY, raw_data=False)
 
 # STATE TRACKING
 partial_taken_pb = {ticker: False for ticker in TICKERS}
@@ -44,8 +45,8 @@ def now():
     return datetime.now(TIMEZONE)
 
 def get_market_status():
-    now = now(),
-    current_time = now.time()
+    current_time = now()
+    current_time = current_time.time()
 
     open_time = dt_time(9,30)
     close_time = dt_time(16,0)
@@ -59,14 +60,14 @@ def get_market_status():
 
 
 def sleep_until_open():
-    now = now(),
-    open_dt = now.replace(hour = 9, minute = 30, second = 0, microsecond=0)
+    current_time = now()
+    open_dt = current_time.replace(hour = 9, minute = 30, second = 0, microsecond=0)
 
-    sleep_seconds = (open_dt - now).total_seconds()
+    sleep_seconds = (open_dt - current_time).total_seconds()
 
     print(f"Market opens in {sleep_seconds/60:.1f} minutes... sleeping")
     time.sleep(max(sleep_seconds, 0))
-
+ 
 def log_trade(ticker, action, price, qty, strategy, profit=None):
     with open("trades.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
@@ -130,11 +131,12 @@ def get_data(ticker):
     """
     Gets data for a stock from the past 60 days
     """
-    now = now()
+    current_time = now()
 
     req = StockBarsRequest(symbol_or_symbols=[ticker],
                            timeframe=TimeFrame(amount=5,unit=TimeFrameUnit.Minute), 
-                           start=now-timedelta(days=5)
+                           start=current_time-timedelta(days=5),
+                           feed=DataFeed.IEX
     )
 
     bars_df = stock_data_client.get_stock_bars(req).df
@@ -152,11 +154,12 @@ def get_position(client, ticker):
 
 def update_data(ticker, df):
     last_time = df.index[-1]
-    now = now(),
+    current_time = now()
     req = StockBarsRequest(
         symbol_or_symbols=[ticker],
         timeframe=TimeFrame(amount=5, unit=TimeFrameUnit.Minute),
-        start=last_time+timedelta(minutes=5)
+        start=last_time+timedelta(minutes=5),
+        feed = DataFeed.IEX
     )
 
     new_bars = stock_data_client.get_stock_bars(req).df
@@ -293,4 +296,4 @@ while True:
                     partial_taken_pb[ticker] = True
                     log_trade(ticker, "PARTIAL SELL", price, shares * 0.5, "PULLBACK_TREND")
         print("Sleeping...")
-        time.sleep(120) # 2 minutes
+        time.sleep(300) # 5 minutes
