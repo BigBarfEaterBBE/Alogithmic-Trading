@@ -1,7 +1,10 @@
 import pandas as pd
+import os
 
-EQUITY_FILE = "../equity.csv"
-TRADES_FILE = "../trades.csv"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+EQUITY_FILE = os.path.join(BASE_DIR, "equity.csv")
+TRADES_FILE = os.path.join(BASE_DIR, "trades.csv")
 
 def get_equity_data():
     df = pd.read_csv(EQUITY_FILE)

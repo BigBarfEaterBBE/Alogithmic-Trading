@@ -7,7 +7,7 @@ async function loadEquity() {
 
     const ctx = document.getElementById("equityChart");
 
-    new CharacterData(ctx, {
+    new Chart(ctx, {
         type: "line",
         data: {
             labels: labels,

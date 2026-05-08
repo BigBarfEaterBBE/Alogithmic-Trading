@@ -5,14 +5,53 @@
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
-        <h1>Trading Dashboard</h1>
-        <canvas id="equityChart"></canvas>
-        <h2>Open Positions</h2>
-        <ul id="positions"></ul>
+        <audio id="bgMusic" loop>
+            <source src="assets/stock-market-sounds.mp3" type="audio/mpeg">
+        </audio>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const audio = document.getElementById("bgMusic");
 
-        <h2>Trade History</h2>
-        <table id="tradesTable"></table>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="script.js"></script>
+                const start = async () => {
+                    try {
+                        await audio.play();
+                        console.log("Audio playing");
+                    } catch (e) {
+                        console.log("Autoplay blocked:", e);
+                    }
+
+                    document.removeEventListener("click", start);
+                    document.removeEventListener("touchstart", start);
+                };
+                document.addEventListener("click", start, { once: true });
+                document.addEventListener("touchstart", start, { once: true });
+            })
+            
+        </script>
+        <h1>Trading Dashboard</h1>
+        <div class="dashboard">
+            <div class="left-panel">
+                <div class="card">
+                    <h2>Open Positions</h2>
+                    <ul id="positions"></ul>
+                </div>
+                <div class="card">
+                    <h2>Trade History</h2>
+                    <table id="tradesTable"></table>
+                </div>
+            </div>
+            <div class="right-panel">
+                <div class="card chart-card">
+                    <h2>Equity Curve</h2>
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+            
+
+            
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script src="script.js"></script>
+        </div>
+        
     </body>
 </html>

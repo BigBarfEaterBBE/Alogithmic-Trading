@@ -294,6 +294,6 @@ while True:
                     sell_partial(pb_client, ticker, 0.5)
                     shares, avg_entry = get_position(pb_client, ticker)
                     partial_taken_pb[ticker] = True
-                    log_trade(ticker, "PARTIAL SELL", price, shares * 0.5, "PULLBACK_TREND")
+                    log_trade(ticker, "PARTIAL_SELL", price, shares * 0.5, "PULLBACK_TREND")
         print("Sleeping...")
         time.sleep(300) # 5 minutes
