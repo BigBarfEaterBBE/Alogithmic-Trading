@@ -79,12 +79,7 @@ def add_indicators(df):
 
     # MEAN REVERSION BUY
     df['mr_signal'] = (
-        ((df['pct_change'] <= -3) | (df['rsi'] < 30))
-    )
-
-    df['pb_signal'] = (
-        (df['close'] > df['ma50']) # upward trend
-        & (df['rsi'] < 40) # small dip
+        ((df['pct_change'] <= -1.5) | (df['rsi'] < 30))
     )
 
     return df

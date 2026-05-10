@@ -2,7 +2,17 @@ async function loadEquity() {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     const data = await res.json();
 
-    const labels = data.map(d => d.time);
+    const labels = data.map(d => {
+        const date = new Date(d.time);
+
+        return date.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true
+        });
+    });
     const values = data.map(d => d.equity);
 
     const ctx = document.getElementById("equityChart");

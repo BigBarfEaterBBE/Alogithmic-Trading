@@ -64,7 +64,6 @@ def sleep_until_open():
     open_dt = current_time.replace(hour = 9, minute = 30, second = 0, microsecond=0)
 
     sleep_seconds = (open_dt - current_time).total_seconds()
-
     print(f"Market opens in {sleep_seconds/60:.1f} minutes... sleeping")
     time.sleep(max(sleep_seconds, 0))
  

@@ -11,7 +11,12 @@ def get_equity_data():
     # keep only necessary columns (for now)
     df = df[["time", "equity"]]
     #remove duplicates
-    df = df.drop_duplicates(subset=["time"])
+    df["time"] = pd.to_datetime(df["time"])
+
+    # round timestamps to nearest minute
+    df["time"] = df["time"].dt.floor("min")
+
+    df = df.drop_duplicates(subset=["time"], keep="last")
 
     return df.to_dict(orient="records")
 
