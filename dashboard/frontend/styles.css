@@ -2,10 +2,10 @@ body {
     font-family: Arial;
     margin: 0;
     min-height: 100vh;
-    background-image: url("assets/wall-street1.png");
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    background-position: center;
+    background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.15), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(34,197,94,0.12), transparent 30%),
+        linear-gradient(135deg, #0b1120, #111827, #0f172a);
     color: white;
 }
 
@@ -15,33 +15,117 @@ body {
 }
 
 .dashboard {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 20px;
-    padding: 20px;
-    align-items: start;
-}
-
-.left-panel {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 500px;
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
 }
+
+.bottom-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+}
+
 
 .card {
-    background: rgba(26,29,37,0.9);
-    padding: 15px;
-    border-radius: 10px;
-    backdrop-filter: blur(6px);
+    background: rgba(18, 24, 38, 0.75);
+    border: 1px solid rgba(255,255,255,0.08);
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    
+    backdrop-filter: blur(14px);
+
+    border-radius: 22px;
+
+    padding: 20px;
+    
+    transition: all 0.3s ease;
 }
 
-.right-panel {
-    display: flex;
-}
 
 .chart-card {
+    animation: glowPulse 4s ease-in-out infinite;
     width: 100%;
+}
+
+@keyframes glowPulse {
+    0% {
+        box-shadow:
+            0 8px 32px rgba(0,0,0,0.35),
+            0 0 0 rgba(56,189,248,0);
+    }
+
+    50% {
+        box-shadow:
+            0 8px 32px rgba(0,0,0,0.35),
+            0 0 25px rgba(56,189,248,0.12);
+    }
+
+    100% {
+        box-shadow:
+            0 8px 32px rgba(0,0,0,0.35),
+            0 0 0 rgba(56,289,248,0);
+    }
+}
+
+/* Glow effect */
+.chart-card::before {
+    content: "";
+
+    position: absolute;
+    top: -100px;
+    right: -100px;
+
+    width: 300px;
+    height: 300px;
+
+    background: radial-gradient(circle, rgba(56,189,248,0.25), transparent 70%);
+    pointer-events: none;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-header h2 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.chart-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.chart-btn {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.08);
+
+    color: white;
+
+    padding: 8px 14px;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chart-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+}
+
+.chart-btn.active {
+    background: #38bdf8;
+    color: #0b0f19;
+    font-weight: bold;
 }
 
 table {
@@ -65,9 +149,10 @@ h1 {
 }
 
 canvas {
-    max-width: 1000px;
-    height: 400px;
-    background-color: white;
+    width: 100% !important;
+    height: 500px !important;
+    background: transparent;
+    border-radius: 16px;
 }
 
 #tradesTable {

@@ -28,9 +28,23 @@
             })
             
         </script>
-        <h1>Trading Dashboard</h1>
+        <h1 class="title">Trading Dashboard</h1>
         <div class="dashboard">
-            <div class="left-panel">
+            <div class="card chart-card">
+                
+                <div class="chart-header">
+                    <div>
+                        <h2>Portfolio Equity</h2>
+                    </div>
+                    <div class="chart-buttons">
+                        <button class="chart-btn active" data-range="5D">5D</button>
+                        <button class="chart-btn" data-range="1M">1M</button>
+                        <button class="chart-btn" data-range="MAX">MAX</button>
+                    </div>
+                </div>
+                <canvas id="equityChart"></canvas>
+            </div>
+            <div class="bottom-section">
                 <div class="card">
                     <h2>Open Positions</h2>
                     <ul id="positions"></ul>
@@ -40,14 +54,6 @@
                     <table id="tradesTable"></table>
                 </div>
             </div>
-            <div class="right-panel">
-                <div class="card chart-card">
-                    <h2>Equity Curve</h2>
-                    <canvas id="equityChart"></canvas>
-                </div>
-            </div>
-            
-
             
         </div>
         
