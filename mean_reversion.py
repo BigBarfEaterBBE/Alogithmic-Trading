@@ -93,17 +93,28 @@ def get_position(client, ticker):
 
 def buy_stock(client, ticker, amount):
     amount = round(amount, 2)
-    order = MarketOrderRequest(symbol=ticker, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
-    client.submit_order(order)
+    if amount < 1:
+        print(f"Skipping {ticker} amount too small")
+        return None
+    try:
+        order = MarketOrderRequest(symbol=ticker, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
+        submitted_order = client.submit_order(order)
+        print(f"BUY submitted for {ticker}")
+        return submitted_order
+    except Exception as e:
+        print(f"BUY FAILED for {ticker}: {e}")
+        return None
 
 def sell_stock(client,ticker):
     try:
         pos = client.get_open_position(ticker)
 
         order = MarketOrderRequest(symbol=ticker, qty=float(pos.qty), side=OrderSide.SELL, time_in_force=TimeInForce.DAY)
-        client.submit_order(order)
-    except:
-        pass
+        submitted_order = client.submit_order(order)
+        return submitted_order
+    except Exception as e:
+        print(f"SELL FAILED for {ticker}")
+        return None
 
 def log_equity(client, name):
     account = client.get_account()
@@ -128,15 +139,22 @@ def sell_partial(client, ticker, fraction):
         
         sell_qty = round(qty * fraction, 6)
 
+        if sell_qty <= 0:
+            print(f"Skipping partial sell for {ticker}")
+            return None
+
         order = MarketOrderRequest(
             symbol=ticker,
             qty=sell_qty,
             side=OrderSide.SELL,
             time_in_force = TimeInForce.DAY
         )
-        client.submit_order(order)
-    except:
-        pass
+        submitted_order = client.submit_order(order)
+        print(f"PARTIAL SELL submitted for {ticker}")
+        return submitted_order
+    except Exception as e:
+        print(f"PARTIAL SELL FAILED for {ticker}: {e}")
+        return None
 
 # MAIN TRADING LOGIC
 tickers = ["NVDA", "GOOGL", "SPY", "DIA", "QQQ"]
@@ -168,10 +186,11 @@ for ticker in tickers:
     # BUY
     if shares == 0 and row['mr_signal']:
         trade_amount = mr_balance * risk_percent
-        buy_stock(mr_client, ticker, trade_amount)
-        partial_taken_mr[ticker] = False
-        log_trade(ticker, "BUY", current_price, trade_amount, "MEAN_REVERSION")
-        print(f"{ticker} MR BUY at {current_price}")
+        order = buy_stock(mr_client, ticker, trade_amount)
+        if order:
+            partial_taken_mr[ticker] = False
+            log_trade(ticker, "BUY", current_price, trade_amount, "MEAN_REVERSION")
+            print(f"{ticker} MR BUY at {current_price}")
     
     # SCALE IN
     elif shares > 0:
@@ -179,9 +198,10 @@ for ticker in tickers:
 
         if drop <= -0.02:
             trade_amount = mr_balance * risk_percent
-            buy_stock(mr_client, ticker, trade_amount)
-            log_trade(ticker, "ADD", current_price, trade_amount, "SCALE")
-            print(f"{ticker} ADD at {current_price}")
+            order = buy_stock(mr_client, ticker, trade_amount)
+            if order:
+                log_trade(ticker, "ADD", current_price, trade_amount, "SCALE")
+                print(f"{ticker} ADD at {current_price}")
     mr_balance = float(mr_client.get_account().cash)
     # SELL
     if shares > 0:
@@ -198,33 +218,34 @@ for ticker in tickers:
         if current_price >= tp2:
             profit = (current_price - avg_entry) * shares
 
-            sell_stock(mr_client, ticker)
+            order = sell_stock(mr_client, ticker)
+            if order:
+                partial_taken_mr[ticker] = False
 
-            partial_taken_mr[ticker] = False
+                log_trade(ticker, "SELL", current_price, shares, "MEAN_REVERSION", profit)
 
-            log_trade(ticker, "SELL", current_price, shares, "MEAN_REVERSION", profit)
-
-            print(f"{ticker} FULL SELL at {current_price} | Profit: {profit}")
+                print(f"{ticker} FULL SELL at {current_price} | Profit: {profit}")
 
         # PARTIAL TAKE PROFIT
         elif current_price >= tp1 and not partial_taken_mr[ticker]:
-            sell_partial(mr_client, ticker, 0.5)
+            order = sell_partial(mr_client, ticker, 0.5)
+            if order:
+                partial_taken_mr[ticker] = True
 
-            partial_taken_mr[ticker] = True
-
-            log_trade(ticker, "PARTIAL SELL", current_price, shares * 0.5, "MEAN_REVERSION")
-            print(f"{ticker} PARTIAL SELL at {current_price}")
+                log_trade(ticker, "PARTIAL SELL", current_price, shares * 0.5, "MEAN_REVERSION")
+                print(f"{ticker} PARTIAL SELL at {current_price}")
         
         # STOP LOSS 
         elif current_price <= stop_price:
             profit = (current_price - avg_entry) * shares
 
-            sell_stock(mr_client, ticker)
-            partial_taken_mr[ticker] = False
+            order = sell_stock(mr_client, ticker)
+            if order:
+                partial_taken_mr[ticker] = False
 
-            log_trade(ticker, "STOP LOSS", current_price, shares, "MEAN_REVERSION", profit)
+                log_trade(ticker, "STOP LOSS", current_price, shares, "MEAN_REVERSION", profit)
 
-            print(f"{ticker} STOP LOSS at {current_price} | Profit: {profit}")
+                print(f"{ticker} STOP LOSS at {current_price} | Profit: {profit}")
     mr_balance = float(mr_client.get_account().cash)
     log_equity(mr_client, "MR")
 

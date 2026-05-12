@@ -40,6 +40,12 @@ async function loadEquity(range = "5D") {
     const startValue = values[0];
     const endValue = values[values.length - 1];
     const positive = endValue >= startValue;
+    document.body.classList.remove("profit", "loss");
+    if (positive) {
+        document.body.classList.add("profit");
+    } else {
+        document.body.classList.add("loss");
+    }
     const lineColor = positive ? "#22c55e" : "#ef4444";
 
     const ctx = document.getElementById("equityChart");

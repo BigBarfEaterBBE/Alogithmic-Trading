@@ -68,7 +68,7 @@ def sleep_until_open():
     time.sleep(max(sleep_seconds, 0))
  
 def log_trade(ticker, action, price, qty, strategy, profit=None):
-    with open("trades.csv", mode="a", newline="") as file:
+    with open("dashboard/trades.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
         writer.writerow([
@@ -86,11 +86,11 @@ def log_equity(client, name):
     equity = float(account.equity)
     cash = float(account.cash)
 
-    with open("equity.csv", mode="a", newline="") as file:
+    with open("dashboard/equity.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
         writer.writerow([
-            now(),
+            datetime.now(),
             name,
             equity,
             cash
@@ -117,10 +117,10 @@ def add_indicators(df):
     df['vol_spike'] = df['volume'] > df['vol_avg'] * 1.5
 
     df['pb_signal'] = (
-        (df['drop_3'] <= -0.005) # large drop (-1.5% in 15 min candle)
+        ((df['drop_3'] <= -0.005) # large drop (-1.5% in 15 min candle)
         | (df['vwap_dev'] <= -0.01)
-        | (df['pct_change'] <= -1.5)
-        | df['vol_spike'] # shows increase in volume -> panic selling
+        | (df['pct_change'] <= -1.5))
+        & df['vol_spike'] # shows increase in volume -> panic selling
     ) 
 
     return df
@@ -181,17 +181,31 @@ def update_data(ticker, df):
 
 def buy_stock(client, ticker, amount):
     amount = round(amount, 2)
-    order = MarketOrderRequest(symbol=ticker, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
-    client.submit_order(order)
+    if amount < 1:
+        print(f"Skipping {ticker}: amount too small (${amount})")
+        return None
+    
+    try:
+        order = MarketOrderRequest(symbol=ticker, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
+        submitted_order = client.submit_order(order)
+        print(f"{ticker} PB BUY at {amount}")
+        return submitted_order
+    except Exception as e:
+        print(f"BUY FAILED for {ticker}: {e}")
+        return None
+    
+    
 
 def sell_stock(client,ticker):
     try:
         pos = client.get_open_position(ticker)
 
         order = MarketOrderRequest(symbol=ticker, qty=float(pos.qty), side=OrderSide.SELL, time_in_force=TimeInForce.DAY)
-        client.submit_order(order)
-    except:
-        pass
+        submitted_order = client.submit_order(order)
+        return submitted_order
+    except Exception as e:
+        print(f"SELL FAILED for {ticker}: {e}")
+        return None
 
 def sell_partial(client, ticker, fraction):
     try:
@@ -206,9 +220,11 @@ def sell_partial(client, ticker, fraction):
             side=OrderSide.SELL,
             time_in_force = TimeInForce.DAY
         )
-        client.submit_order(order)
-    except:
-        pass
+        submitted_order = client.submit_order(order)
+        return submitted_order
+    except Exception as e:
+        print(f"SELL FAILED for {ticker}: {e}")
+        return None
 
 
 # GET DATA
@@ -228,9 +244,9 @@ while True:
         break
     else:
         print("Market open. Running algorithm")
-        pb_balance = float(pb_client.get_account().cash)
 
         for ticker in TICKERS:
+            pb_balance = float(pb_client.get_account().cash)
             data_map[ticker] = update_data(ticker, data_map[ticker])
             df = data_map[ticker]
             current_time = df.index[-1]
@@ -248,35 +264,39 @@ while True:
 
             # BUY
             if shares == 0 and row['pb_signal']:
-                trade_amount = pb_balance * RISK_PERCENT
-                buy_stock(pb_client, ticker, trade_amount)
-                shares, avg_entry = get_position(pb_client, ticker)
-                last_trade_time[ticker] = current_time
-                partial_taken_pb[ticker] = False
-                log_trade(ticker, "BUY", price, trade_amount, "PULLBACK_TREND")
-                print(f"{ticker} PB BUY at {price}")
+                trade_amount = max(pb_balance * RISK_PERCENT, 1)
+                order = buy_stock(pb_client, ticker, trade_amount)
+                if order:
+                    shares, avg_entry = get_position(pb_client, ticker)
+                    last_trade_time[ticker] = current_time
+                    partial_taken_pb[ticker] = False
+                    log_trade(ticker, "BUY", price, trade_amount, "PULLBACK_TREND")
+                
             
             # SCALE
             elif shares > 0:
                 drop = (price- avg_entry) / avg_entry
                 if drop <= -0.006:
-                    trade_amount = pb_balance * RISK_PERCENT * 2
-                    buy_stock(pb_client, ticker, trade_amount)
-                    last_trade_time[ticker] = current_time
-                    shares, avg_entry = get_position(pb_client, ticker)
-                    log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
+                    trade_amount = max(pb_balance * RISK_PERCENT * 2, 1)
+                    order = buy_stock(pb_client, ticker, trade_amount)
+                    if order:
+                        last_trade_time[ticker] = current_time
+                        shares, avg_entry = get_position(pb_client, ticker)
+                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
                 elif drop <= -0.004:
-                    trade_amount = pb_balance * RISK_PERCENT * 1.5
-                    buy_stock(pb_client, ticker, trade_amount)
-                    last_trade_time[ticker] = current_time
-                    shares, avg_entry = get_position(pb_client, ticker)
-                    log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
+                    trade_amount = max(pb_balance * RISK_PERCENT * 1.5, 1)
+                    order = buy_stock(pb_client, ticker, trade_amount)
+                    if order:
+                        last_trade_time[ticker] = current_time
+                        shares, avg_entry = get_position(pb_client, ticker)
+                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
                 elif drop <= -0.002:
-                    trade_amount = pb_balance * RISK_PERCENT
-                    buy_stock(pb_client, ticker, trade_amount)
-                    last_trade_time[ticker] = current_time
-                    shares, avg_entry = get_position(pb_client, ticker)
-                    log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
+                    trade_amount = max(pb_balance * RISK_PERCENT, 1)
+                    order = buy_stock(pb_client, ticker, trade_amount)
+                    if order:
+                        last_trade_time[ticker] = current_time
+                        shares, avg_entry = get_position(pb_client, ticker)
+                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
             # SELL
             if shares > 0:
                 atr = row['atr']
@@ -285,15 +305,17 @@ while True:
 
                 if price >= tp2:
                     profit = (price - avg_entry) * shares
-                    sell_stock(pb_client, ticker)
-                    shares, avg_entry = get_position(pb_client, ticker)
-                    log_trade(ticker, "SELL", price, shares, "PULLBACK_TREND", profit)
+                    order = sell_stock(pb_client, ticker)
+                    if order:
+                        shares, avg_entry = get_position(pb_client, ticker)
+                        log_trade(ticker, "SELL", price, shares, "PULLBACK_TREND", profit)
 
                 elif price >= tp1 and not partial_taken_pb[ticker]:
-                    sell_partial(pb_client, ticker, 0.5)
-                    shares, avg_entry = get_position(pb_client, ticker)
-                    partial_taken_pb[ticker] = True
-                    log_trade(ticker, "PARTIAL_SELL", price, shares * 0.5, "PULLBACK_TREND")
+                    order = sell_partial(pb_client, ticker, 0.5)
+                    if order: 
+                        shares, avg_entry = get_position(pb_client, ticker)
+                        partial_taken_pb[ticker] = True
+                        log_trade(ticker, "PARTIAL_SELL", price, shares * 0.5, "PULLBACK_TREND")
         log_equity(pb_client, "PB")
         print("Sleeping...")
         time.sleep(300) # 5 minutes

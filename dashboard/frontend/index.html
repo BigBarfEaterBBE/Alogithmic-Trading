@@ -5,29 +5,6 @@
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
-        <audio id="bgMusic" loop>
-            <source src="assets/stock-market-sounds.mp3" type="audio/mpeg">
-        </audio>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const audio = document.getElementById("bgMusic");
-
-                const start = async () => {
-                    try {
-                        await audio.play();
-                        console.log("Audio playing");
-                    } catch (e) {
-                        console.log("Autoplay blocked:", e);
-                    }
-
-                    document.removeEventListener("click", start);
-                    document.removeEventListener("touchstart", start);
-                };
-                document.addEventListener("click", start, { once: true });
-                document.addEventListener("touchstart", start, { once: true });
-            })
-            
-        </script>
         <h1 class="title">Trading Dashboard</h1>
         <div class="dashboard">
             <div class="card chart-card">
