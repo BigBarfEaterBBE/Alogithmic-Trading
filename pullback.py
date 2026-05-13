@@ -39,6 +39,9 @@ stock_data_client = StockHistoricalDataClient(PB_API_KEY, PB_SECRET_KEY, raw_dat
 partial_taken_pb = {ticker: False for ticker in TICKERS}
 last_trade_time = {ticker: None for ticker in TICKERS}
 data_map = {}
+scale_level_pb = {ticker: 0 for ticker in TICKERS}
+
+MIN_TRADE_SIZE = 100
 
 # HELPER FUNCTIONS
 def now():
@@ -67,18 +70,19 @@ def sleep_until_open():
     print(f"Market opens in {sleep_seconds/60:.1f} minutes... sleeping")
     time.sleep(max(sleep_seconds, 0))
  
-def log_trade(ticker, action, price, qty, strategy, profit=None):
+def log_trade(ticker, action, price, shares, strategy, notional=None, profit=None):
     with open("dashboard/trades.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
         writer.writerow([
-            now(),
+            datetime.now(),
             ticker,
             strategy,
             action,
-            price,
-            qty,
-            profit
+            round(price, 4),
+            round(shares, 6),
+            round(notional, 2) if notional is not None else None,
+            round(profit, 2) if profit is not None else None
         ])
 def log_equity(client, name):
     account = client.get_account()
@@ -181,7 +185,7 @@ def update_data(ticker, df):
 
 def buy_stock(client, ticker, amount):
     amount = round(amount, 2)
-    if amount < 1:
+    if amount < MIN_TRADE_SIZE:
         print(f"Skipping {ticker}: amount too small (${amount})")
         return None
     
@@ -267,36 +271,44 @@ while True:
                 trade_amount = max(pb_balance * RISK_PERCENT, 1)
                 order = buy_stock(pb_client, ticker, trade_amount)
                 if order:
+                    scale_level_pb[ticker] = 0
                     shares, avg_entry = get_position(pb_client, ticker)
                     last_trade_time[ticker] = current_time
                     partial_taken_pb[ticker] = False
-                    log_trade(ticker, "BUY", price, trade_amount, "PULLBACK_TREND")
+                    estimated_shares = trade_amount/price
+                    log_trade(ticker, "BUY", price, estimated_shares, "PULLBACK_TREND", notional=trade_amount)
                 
             
             # SCALE
             elif shares > 0:
                 drop = (price- avg_entry) / avg_entry
-                if drop <= -0.006:
-                    trade_amount = max(pb_balance * RISK_PERCENT * 2, 1)
+                if drop <= -0.015 and scale_level_pb[ticker] < 3:
+                    trade_amount = max(pb_balance * RISK_PERCENT * 2, 100)
                     order = buy_stock(pb_client, ticker, trade_amount)
                     if order:
+                        scale_level_pb[ticker] = 3
                         last_trade_time[ticker] = current_time
                         shares, avg_entry = get_position(pb_client, ticker)
-                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
-                elif drop <= -0.004:
-                    trade_amount = max(pb_balance * RISK_PERCENT * 1.5, 1)
+                        estimated_shares = trade_amount / price
+                        log_trade(ticker, "ADD", price, estimated_shares, "PULLBACK_TREND", notional=trade_amount)
+                elif drop <= -0.01 and scale_level_pb[ticker] < 2:
+                    trade_amount = max(pb_balance * RISK_PERCENT * 1.5, 100)
                     order = buy_stock(pb_client, ticker, trade_amount)
                     if order:
+                        scale_level_pb[ticker] = 2
                         last_trade_time[ticker] = current_time
                         shares, avg_entry = get_position(pb_client, ticker)
-                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
-                elif drop <= -0.002:
-                    trade_amount = max(pb_balance * RISK_PERCENT, 1)
+                        estimated_shares = trade_amount / price
+                        log_trade(ticker, "ADD", price, estimated_shares, "PULLBACK_TREND", notional=trade_amount)
+                elif drop <= -0.005 and scale_level_pb[ticker] < 1:
+                    trade_amount = max(pb_balance * RISK_PERCENT, 100)
                     order = buy_stock(pb_client, ticker, trade_amount)
                     if order:
+                        scale_level_pb[ticker] = 1
                         last_trade_time[ticker] = current_time
                         shares, avg_entry = get_position(pb_client, ticker)
-                        log_trade(ticker, "ADD", price, trade_amount, "PULLBACK_TREND")
+                        estimated_shares = trade_amount / price
+                        log_trade(ticker, "ADD", price, estimated_shares, "PULLBACK_TREND", notional=trade_amount)
             # SELL
             if shares > 0:
                 atr = row['atr']
@@ -304,18 +316,25 @@ while True:
                 tp2 = avg_entry * 1.04
 
                 if price >= tp2:
-                    profit = (price - avg_entry) * shares
+                    sell_qty = shares
+                    profit = (price - avg_entry) * sell_qty
+                    notional = sell_qty * price
                     order = sell_stock(pb_client, ticker)
                     if order:
+                        scale_level_pb[ticker] = 0
+                        partial_taken_pb[ticker] = False
+                        log_trade(ticker, "SELL", price, sell_qty, "PULLBACK_TREND", notional=notional, profit=profit)
                         shares, avg_entry = get_position(pb_client, ticker)
-                        log_trade(ticker, "SELL", price, shares, "PULLBACK_TREND", profit)
 
                 elif price >= tp1 and not partial_taken_pb[ticker]:
+                    sell_qty = shares * 0.5
+                    profit = (price - avg_entry) * sell_qty
+                    notional = sell_qty * price
                     order = sell_partial(pb_client, ticker, 0.5)
                     if order: 
-                        shares, avg_entry = get_position(pb_client, ticker)
                         partial_taken_pb[ticker] = True
-                        log_trade(ticker, "PARTIAL_SELL", price, shares * 0.5, "PULLBACK_TREND")
+                        log_trade(ticker, "PARTIAL_SELL", price, sell_qty, "PULLBACK_TREND", notional=notional, profit=profit)
+                        shares, avg_entry = get_position(pb_client, ticker)
         log_equity(pb_client, "PB")
         print("Sleeping...")
         time.sleep(300) # 5 minutes

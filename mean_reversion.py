@@ -33,7 +33,7 @@ pb_client = TradingClient(api_key = PB_API_KEY, secret_key=PB_SECRET_KEY, paper=
 stock_data_client = StockHistoricalDataClient(MR_API_KEY, MR_SECRET_KEY)
 
 
-def log_trade(ticker, action, price, qty, strategy, profit=None):
+def log_trade(ticker, action, price, shares, strategy, notional=None, profit=None):
     with open("dashboard/trades.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
 
@@ -42,9 +42,11 @@ def log_trade(ticker, action, price, qty, strategy, profit=None):
             ticker,
             strategy,
             action,
-            price,
-            qty,
-            profit
+            round(price, 4),
+            round(shares, 6),
+            round(notional, 2) if notional is not None else None,
+            round(profit, 2) if profit is not None else None
+
         ])
 
 def get_data(ticker):
@@ -93,7 +95,7 @@ def get_position(client, ticker):
 
 def buy_stock(client, ticker, amount):
     amount = round(amount, 2)
-    if amount < 1:
+    if amount < MIN_TRADE_SIZE:
         print(f"Skipping {ticker} amount too small")
         return None
     try:
@@ -165,7 +167,8 @@ pb_balance = float(pb_client.get_account().cash)
 
 # ADD PARTIAL TRACKING
 partial_taken_mr = {ticker: False for ticker in tickers}
-partial_taken_pb = {ticker: False for ticker in tickers}
+scale_level_mr = {ticker: 0 for ticker in tickers}
+MIN_TRADE_SIZE = 100
 
 # DATA
 data_map = {}
@@ -176,6 +179,7 @@ for ticker in tickers:
 
 # MEAN REVERSION LOOP
 for ticker in tickers:
+    mr_balance = float(mr_client.get_account().cash)
     df = data_map[ticker]
 
     row = df.iloc[-1] # ONLY the latest day
@@ -188,19 +192,39 @@ for ticker in tickers:
         trade_amount = mr_balance * risk_percent
         order = buy_stock(mr_client, ticker, trade_amount)
         if order:
+            scale_level_mr[ticker] = 0
             partial_taken_mr[ticker] = False
-            log_trade(ticker, "BUY", current_price, trade_amount, "MEAN_REVERSION")
+            estimated_shares = trade_amount/current_price
+            log_trade(ticker, "BUY", current_price, estimated_shares, "MEAN_REVERSION", notional=trade_amount)
             print(f"{ticker} MR BUY at {current_price}")
     
     # SCALE IN
     elif shares > 0:
         drop = (current_price - avg_entry) / avg_entry
 
-        if drop <= -0.02:
-            trade_amount = mr_balance * risk_percent
+        if drop <= -0.06 and scale_level_mr[ticker] < 3:
+            trade_amount = max(mr_balance * risk_percent * 2, 100)
             order = buy_stock(mr_client, ticker, trade_amount)
             if order:
-                log_trade(ticker, "ADD", current_price, trade_amount, "SCALE")
+                scale_level_mr[ticker] = 3
+                estimated_shares = trade_amount / current_price
+                log_trade(ticker, "ADD", current_price, estimated_shares, "MEAN_REVERSION", notional=trade_amount)
+                print(f"{ticker} ADD at {current_price}")
+        elif drop <= -0.04 and scale_level_mr[ticker] < 2:
+            trade_amount = max(mr_balance * risk_percent * 1.5, 100)
+            order = buy_stock(mr_client, ticker, trade_amount)
+            if order:
+                scale_level_mr[ticker] = 2
+                estimated_shares = trade_amount / current_price
+                log_trade(ticker, "ADD", current_price, estimated_shares, "MEAN_REVERSION", notional=trade_amount)
+                print(f"{ticker} ADD at {current_price}")
+        elif drop <= -0.02 and scale_level_mr[ticker] < 1:
+            trade_amount = max(mr_balance * risk_percent, 100)
+            order = buy_stock(mr_client, ticker, trade_amount)
+            if order:
+                scale_level_mr[ticker] = 1
+                estimated_shares = trade_amount / current_price
+                log_trade(ticker, "ADD", current_price, estimated_shares, "MEAN_REVERSION", notional=trade_amount)
                 print(f"{ticker} ADD at {current_price}")
     mr_balance = float(mr_client.get_account().cash)
     # SELL
@@ -216,23 +240,29 @@ for ticker in tickers:
         
         # FULL TAKE PROFIT
         if current_price >= tp2:
-            profit = (current_price - avg_entry) * shares
+            sell_qty = shares
+            profit = (current_price - avg_entry) * sell_qty
+            notional = sell_qty * current_price
 
             order = sell_stock(mr_client, ticker)
             if order:
                 partial_taken_mr[ticker] = False
+                scale_level_mr[ticker] = 0
 
-                log_trade(ticker, "SELL", current_price, shares, "MEAN_REVERSION", profit)
+                log_trade(ticker, "SELL", current_price, sell_qty, "MEAN_REVERSION", notional=notional, profit=profit)
 
                 print(f"{ticker} FULL SELL at {current_price} | Profit: {profit}")
 
         # PARTIAL TAKE PROFIT
         elif current_price >= tp1 and not partial_taken_mr[ticker]:
+            sell_qty = shares * 0.5
+            profit = (current_price - avg_entry) * sell_qty
+            notional = sell_qty * current_price
             order = sell_partial(mr_client, ticker, 0.5)
             if order:
                 partial_taken_mr[ticker] = True
 
-                log_trade(ticker, "PARTIAL SELL", current_price, shares * 0.5, "MEAN_REVERSION")
+                log_trade(ticker, "PARTIAL SELL", current_price, sell_qty, "MEAN_REVERSION", notional=notional, profit=profit)
                 print(f"{ticker} PARTIAL SELL at {current_price}")
         
         # STOP LOSS 
@@ -241,6 +271,7 @@ for ticker in tickers:
 
             order = sell_stock(mr_client, ticker)
             if order:
+                scale_level_mr[ticker] = 0
                 partial_taken_mr[ticker] = False
 
                 log_trade(ticker, "STOP LOSS", current_price, shares, "MEAN_REVERSION", profit)
