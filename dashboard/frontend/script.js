@@ -1,5 +1,7 @@
 let equityChart = null;
 let equityData = [];
+let currentRange = "5D";
+let currentStrategy = "TOTAL";
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     const data = await res.json();
@@ -7,18 +9,24 @@ async function loadEquity(range = "5D") {
     equityData = data;
 
     let filtered = [...data];
+    
+    if (currentStrategy != "TOTAL") {
+        filtered = filtered.filter(
+            d => d.strategy === currentStrategy
+        );
+    }
 
     const now = new Date();
 
     if (range === "5D") {
-        filtered = data.filter(d => {
+        filtered = filtered.filter(d => {
             const date = new Date(d.time);
             return (now-date) <= 5 * 24 * 60 * 60 * 1000;
         });
     }
 
     if (range === "1M") {
-        filtered = data.filter(d => {
+        filtered = filtered.filter(d => {
             const date = new Date(d.time);
             return (now-date) <= 30 * 24 * 60 * 60 * 1000;
         });
@@ -35,7 +43,25 @@ async function loadEquity(range = "5D") {
             hour12: true
         });
     });
-    const values = filtered.map(d => d.equity);
+    let values = [];
+    if (currentStrategy === "TOTAL") {
+        let latestMR = null;
+        let latestPB = null;
+
+        filtered.forEach(d => {
+            if (d.strategy === "MR") {
+                latestMR = Number(d.equity);
+            }
+            if (d.strategy === "PB") {
+                latestPB = Number(d.equity);
+            }
+
+            const total = (latestMR ?? latesPB ?? 0) + (latestPB ?? latestMR ?? 0);
+            values.push(total);
+        });
+    } else {
+        values = filtered.map(d => Number(d.equity));
+    }
 
     const startValue = values[0];
     const endValue = values[values.length - 1];
@@ -180,8 +206,17 @@ document.querySelectorAll(".chart-btn").forEach(button => {
     button.addEventListener("click", () => {
         document.querySelectorAll(".chart-btn").forEach(btn => btn.classList.remove("active"));
         button.classList.add("active");
-        const range = button.dataset.range;
-        loadEquity(range);
+        currentRange = button.dataset.range;
+        loadEquity(currentRange);
+    });
+});
+
+document.querySelectorAll(".strategy-btn").forEach(button => {
+    button.addEventListener("click", () => {
+        document.querySelectorAll(".strategy-btn").forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+        currentStrategy = button.dataset.strategy;
+        loadEquity(currentRange);
     });
 });
 

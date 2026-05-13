@@ -13,10 +13,17 @@
                     <div>
                         <h2>Portfolio Equity</h2>
                     </div>
-                    <div class="chart-buttons">
-                        <button class="chart-btn active" data-range="5D">5D</button>
-                        <button class="chart-btn" data-range="1M">1M</button>
-                        <button class="chart-btn" data-range="MAX">MAX</button>
+                    <div class="chart-controls">
+                        <div class="chart-buttons">
+                            <button class="chart-btn active" data-range="5D">5D</button>
+                            <button class="chart-btn" data-range="1M">1M</button>
+                            <button class="chart-btn" data-range="MAX">MAX</button>
+                        </div>
+                        <div class="chart-buttons strategy-buttons">
+                            <button class="strategy-btn active" data-strategy="TOTAL">TOTAL</button>
+                            <button class="strategy-btn" data-strategy="MR">MR</button>
+                            <button class="strategy-btn" data-strategy="PB">PB</button>
+                        </div>
                     </div>
                 </div>
                 <canvas id="equityChart"></canvas>
