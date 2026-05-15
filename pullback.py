@@ -47,6 +47,17 @@ MIN_TRADE_SIZE = 100
 def now():
     return datetime.now(TIMEZONE)
 
+def get_account_safe(client, retries=3, delay=5):
+    for attempt in range(retries):
+        try:
+            return client.get_account()
+        except Exception as e:
+            print(f"Account fetch failed (attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries -1 :
+                time.sleep(delay)
+            else:
+                raise
+
 def get_market_status():
     current_time = now()
     current_time = current_time.time()
@@ -85,7 +96,7 @@ def log_trade(ticker, action, price, shares, strategy, notional=None, profit=Non
             round(profit, 2) if profit is not None else None
         ])
 def log_equity(client, name):
-    account = client.get_account()
+    account = get_account_safe(client)
 
     equity = float(account.equity)
     cash = float(account.cash)
@@ -250,7 +261,8 @@ while True:
         print("Market open. Running algorithm")
 
         for ticker in TICKERS:
-            pb_balance = float(pb_client.get_account().cash)
+            account = get_account_safe(pb_client)
+            pb_balance = float(account.cash)
             data_map[ticker] = update_data(ticker, data_map[ticker])
             df = data_map[ticker]
             current_time = df.index[-1]

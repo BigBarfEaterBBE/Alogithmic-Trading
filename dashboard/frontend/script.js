@@ -5,18 +5,33 @@ let currentStrategy = "TOTAL";
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     const data = await res.json();
-
+    console.log(data);
     equityData = data;
 
-    let filtered = [...data];
+    let filtered = data.filter(d => d && d.strategy && d.equity).map(d => ({
+        ...d,
+        strategy: String(d.strategy).trim(),
+        equity: Number(d.equity)
+    }));
     
     if (currentStrategy != "TOTAL") {
         filtered = filtered.filter(
             d => d.strategy === currentStrategy
         );
     }
+    filtered.sort((a,b ) => new Date(a.time) - new Date(b.time));
 
     const now = new Date();
+
+    if (range === "1D") {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        filtered = filtered.filter(d => {
+            const date = new Date(d.time);
+            return date >= today;
+        });
+    }
 
     if (range === "5D") {
         filtered = filtered.filter(d => {
@@ -45,22 +60,44 @@ async function loadEquity(range = "5D") {
     });
     let values = [];
     if (currentStrategy === "TOTAL") {
-        let latestMR = null;
-        let latestPB = null;
+        const mrMap = new Map();
+        const pbMap = new Map();
 
-        filtered.forEach(d => {
+        for (const d of filtered) {
+            const t = new Date(d.time).getTime();
             if (d.strategy === "MR") {
-                latestMR = Number(d.equity);
+                mrMap.set(t, Number(d.equity));
             }
             if (d.strategy === "PB") {
-                latestPB = Number(d.equity);
+                pbMap.set(t, Number(d.equity));
             }
+        }
+        const allTimes = [...new Set({
+            ...mrMap.keys(),
+            ...pbMap.keys()
+        })].sort((a,b) => a-b);
+        let lastMR = null;
+        let lastPB = null;
 
-            const total = (latestMR ?? latesPB ?? 0) + (latestPB ?? latestMR ?? 0);
-            values.push(total);
-        });
-    } else {
-        values = filtered.map(d => Number(d.equity));
+        for (const t of allTimes) {
+            if (mrMap.has(t)) lastMR = mrMap.get(t);
+            if (pbMap.has(t)) lastPB = pbMap.get(t);
+
+            if (lastMR !== null && lastPB !== null) {
+                CharacterData.push({
+                    x: new Date(t),
+                    y: lastMR + lastPB
+                });
+            }
+        }
+    }
+
+    console.log(filtered);
+    console.log(values);
+
+    if (values.length === 0) {
+        console.error("No values to chart");
+        return;
     }
 
     const startValue = values[0];
@@ -76,7 +113,6 @@ async function loadEquity(range = "5D") {
     const lineColor = positive ? "#22c55e" : "#ef4444";
 
     const ctx = document.getElementById("equityChart");
-
     if (equityChart) {
         equityChart.destroy();
     }

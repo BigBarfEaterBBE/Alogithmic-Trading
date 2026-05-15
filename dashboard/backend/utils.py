@@ -9,14 +9,14 @@ TRADES_FILE = os.path.join(BASE_DIR, "old_bugged_trades.csv")
 def get_equity_data():
     df = pd.read_csv(EQUITY_FILE)
     # keep only necessary columns (for now)
-    df = df[["time", "equity"]]
+    df = df[["time", "strategy", "equity"]]
     #remove duplicates
     df["time"] = pd.to_datetime(df["time"])
 
     # round timestamps to nearest minute
     df["time"] = df["time"].dt.floor("min")
 
-    df = df.drop_duplicates(subset=["time"], keep="last")
+    df = df.drop_duplicates(subset=["time", "strategy"], keep="last")
 
     return df.to_dict(orient="records")
 
