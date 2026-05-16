@@ -1,6 +1,6 @@
 let equityChart = null;
 let equityData = [];
-let currentRange = "5D";
+let currentRange = "1D";
 let currentStrategy = "TOTAL";
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
@@ -23,73 +23,97 @@ async function loadEquity(range = "5D") {
 
     const now = new Date();
 
+    let cutoff = null;
     if (range === "1D") {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-
-        filtered = filtered.filter(d => {
-            const date = new Date(d.time);
-            return date >= today;
-        });
-    }
-
-    if (range === "5D") {
-        filtered = filtered.filter(d => {
-            const date = new Date(d.time);
-            return (now-date) <= 5 * 24 * 60 * 60 * 1000;
-        });
-    }
-
-    if (range === "1M") {
-        filtered = filtered.filter(d => {
-            const date = new Date(d.time);
-            return (now-date) <= 30 * 24 * 60 * 60 * 1000;
-        });
-    }
-
-    const labels = filtered.map(d => {
-        const date = new Date(d.time);
-
-        return date.toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true
-        });
-    });
-    let values = [];
-    if (currentStrategy === "TOTAL") {
-        const mrMap = new Map();
-        const pbMap = new Map();
-
-        for (const d of filtered) {
-            const t = new Date(d.time).getTime();
-            if (d.strategy === "MR") {
-                mrMap.set(t, Number(d.equity));
-            }
-            if (d.strategy === "PB") {
-                pbMap.set(t, Number(d.equity));
-            }
+        // weekday
+        if (now.getDay() >= 1 && now.getDay() <= 5) {
+            cutoff = new Date(now - 24 * 60 * 60 * 1000);
         }
-        const allTimes = [...new Set({
-            ...mrMap.keys(),
-            ...pbMap.keys()
-        })].sort((a,b) => a-b);
+        //saturday
+        else if (now.getDay() === 6) {
+            cutoff = new Date(now);
+            cutoff.setDate(now.getDate()-1);
+            cutoff.setHours(0,0,0,0);
+        }
+        //sunday
+        else if (now.getDay() === 0) {
+            cutoff = new Date(now);
+            cutoff.setDate(now.getDate() -2);
+            cutoff.setHours(0,0,0,0);
+        }
+    }
+    if (range === "5D") {
+        cutoff = new Date(now - 5 * 24 * 60 * 60 * 1000);
+    }
+    if (range === "1M") {
+        cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000);
+    }
+    if (cutoff) {
+        // latest MR before cutoff
+        const prevMR = [...filtered].reverse().find(d => d.strategy === "MR" && new Date(d.time) < cutoff);
+        // last PB before cutoff
+        const prevPB = [...filtered].reverse().find(d => d.strategy === "PB" && new Date(d.time) < cutoff);
+        // keep only points inside cutoff range
+        if (range === "1D" && (now.getDay() === 6 || now.getDay() === 0)) {
+            //weekend -> only frida data
+            filtered = filtered.filter(d => {
+                const date = new Date(d.time);
+                return (date >= cutoff && date.getDay() === 5);
+            });
+        } else {
+            filtered = filtered.filter(d => new Date(d.time) >= cutoff);
+        }
+
+        // prepend previous values for continuity
+        if (prevMR) filtered.unshift(prevMR);
+        if (prevPB) filtered.unshift(prevPB);
+        filtered.sort((a,b) => new Date(a.time) - new Date(b.time));
+    }
+
+    let values = [];
+    let labels = [];
+    if (currentStrategy === "TOTAL") {
         let lastMR = null;
         let lastPB = null;
 
-        for (const t of allTimes) {
-            if (mrMap.has(t)) lastMR = mrMap.get(t);
-            if (pbMap.has(t)) lastPB = pbMap.get(t);
+        filtered.forEach(d => {
+            if (d.strategy === "MR") {
+                lastMR = Number(d.equity);
+            }
+            if (d.strategy === "PB") {
+                lastPB = Number(d.equity);
+            }
 
             if (lastMR !== null && lastPB !== null) {
-                CharacterData.push({
-                    x: new Date(t),
-                    y: lastMR + lastPB
-                });
+                values.push(lastMR + lastPB);
+                const date = new Date(d.time);
+
+                labels.push(
+                    date.toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true
+                    })
+                );
             }
-        }
+        });
+    } else {
+        filtered = filtered.filter(
+            d => d.strategy === currentStrategy
+        );
+        values = filtered.map(d => Number(d.equity));
+        labels = filtered.map(d => {
+            const date = new Date(d.time);
+            return date.toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true
+            });
+        });
     }
 
     console.log(filtered);
@@ -233,25 +257,27 @@ async function loadTrades() {
 }
 
 async function loadAll() {
-    await loadEquity("5D");
+    await loadEquity(currentRange);
     await loadPositions();
     await loadTrades();
 }
 
-document.querySelectorAll(".chart-btn").forEach(button => {
-    button.addEventListener("click", () => {
-        document.querySelectorAll(".chart-btn").forEach(btn => btn.classList.remove("active"));
-        button.classList.add("active");
-        currentRange = button.dataset.range;
+document.querySelectorAll(".chart-option").forEach(el => {
+    el.addEventListener("click", () => {
+        if (!el.dataset.range) return;
+        document.querySelectorAll(".chart-option").forEach(e => e.classList.remove("active"));
+        el.classList.add("active");
+        currentRange = el.dataset.range;
         loadEquity(currentRange);
-    });
+    })
 });
 
-document.querySelectorAll(".strategy-btn").forEach(button => {
-    button.addEventListener("click", () => {
-        document.querySelectorAll(".strategy-btn").forEach(btn => btn.classList.remove("active"));
-        button.classList.add("active");
-        currentStrategy = button.dataset.strategy;
+document.querySelectorAll(".strategy-option").forEach(el => {
+    el.addEventListener("click", () => {
+        if (!el.dataset.strategy) return;
+        document.querySelectorAll(".strategy-option").forEach(e => e.classList.remove("active"));
+        el.classList.add("active");
+        currentStrategy = el.dataset.strategy;
         loadEquity(currentRange);
     });
 });

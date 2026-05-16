@@ -170,6 +170,7 @@ body.loss::after {
     width: 100%;
 }
 
+
 @keyframes glowPulse {
     0% {
         box-shadow:
@@ -219,29 +220,34 @@ body.loss::after {
 
 .chart-buttons {
     display: flex;
+    align-items: center;
     gap: 10px;
+    font-size: 14px;
 }
-
-.chart-btn {
-    background: rgba(255,255,255,0.05);
-    border: 2px solid rgba(255,255,255,0.08);
-
-    color: white;
-
-    padding: 8px 14px;
-
+.chart-option,
+.strategy-option {
     cursor: pointer;
-    transition: all 0.2s ease;
+    color: rgba(255,255,255,0.65);
+    transition: all 0.15s ease;
+    user-select: none;
 }
 
-.chart-btn:hover {
-    background: rgba(56, 189, 248, 0.2);
+.chart-option:hover,
+.strategy-option:hover {
+    color: #38bdf8;
 }
 
-.chart-btn.active {
-    background: #38bdf8;
-    color: #0b0f19;
-    font-weight: bold;
+.chart-option.active,
+.strategy-option.active {
+    color: #38bdf8;
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(56,189,248,0.35);
+}
+
+.divider {
+    color: rgba(255,255,255,0.25);
+    margin: 0 4px;
+    user-select: none;
 }
 
 table {

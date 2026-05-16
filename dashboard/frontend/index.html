@@ -13,18 +13,23 @@
                     <div>
                         <h2>Portfolio Equity</h2>
                     </div>
-                    <div class="chart-controls">
-                        <div class="chart-buttons">
-                            <button class="chart-btn" data-range="1D">1D</button>
-                            <button class="chart-btn active" data-range="5D">5D</button>
-                            <button class="chart-btn" data-range="1M">1M</button>
-                            <button class="chart-btn" data-range="MAX">MAX</button>
-                        </div>
-                        <div class="chart-buttons strategy-buttons">
-                            <button class="strategy-btn active" data-strategy="TOTAL">TOTAL</button>
-                            <button class="strategy-btn" data-strategy="MR">MR</button>
-                            <button class="strategy-btn" data-strategy="PB">PB</button>
-                        </div>
+                    <div class="chart-buttons">
+                        <span class="chart-option active" data-range="1D">1D</span>
+                        <span class="divider">/</span>
+                        <span class="chart-option" data-range="5D">5D</span>
+                        <span class="divider">/</span>
+                        <span class="chart-option" data-range="1M">1M</span>
+                        <span class="divider">/</span>
+                        <span class="chart-option" data-range="MAX">MAX</span>
+
+                        <span class="divider">/</span>
+
+                        <span class="strategy-option active" data-strategy="TOTAL">TOTAL</span>
+                        <span class="divider">/</span>
+                        <span class="strategy-option" data-strategy="MR">MR</span>
+                        <span class="divider">/</span>
+                        <span class="strategy-option" data-strategy="PB">PB</span>
+
                     </div>
                 </div>
                 <canvas id="equityChart"></canvas>
@@ -43,7 +48,6 @@
         </div>
         
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
         <script src="script.js"></script>
     </body>
 </html>
