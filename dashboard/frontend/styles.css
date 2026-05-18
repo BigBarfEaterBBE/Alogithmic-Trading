@@ -274,15 +274,154 @@ h1 {
     text-shadow: 0 0 12px rgba(56,189,248,0.35);
 }
 
-canvas {
+#equityChart {
     width: 100% !important;
     height: 500px !important;
     background: transparent;
     border-radius: 16px;
 }
 
+
 #tradesTable {
     display: block;
     max-height: 400px;
     overflow-y: auto;
+}
+
+.ticker-track {
+    display: flex;
+    gap: 14px;
+    width: max-content;
+    will-change: transform;
+}
+
+.ticker-wrapper {
+    width: 100%;
+    overflow: hidden;
+    user-select: none;
+    touch-action: pan-y;
+    padding: 10px 0;
+    scrollbar-width: none;
+}
+.ticker-wrapper::-webkit-scrollbar {
+    display: none;
+}
+
+
+.stock-card {
+    min-width: 240px;
+    background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.08),
+        rgba(255,255,255,0.03)
+    );
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 14px;
+    backdrop-filter: blur(12px);
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.stock-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56,189,248,0.35);
+    box-shadow:
+        0 10px 30px rgba(0,0,0,0.35),
+        0 0 20px rgba(56,189,248,0.10);
+}
+
+.stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.stock-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stock-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.stock-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stock-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255,255,255,0.08);
+}
+
+.stock-ticker {
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.stock-shares {
+    font-size: 12px;
+    opacity: 0.65;
+}
+
+.stock-return {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.stock-return.positive {
+    color: #22c55e;
+}
+
+.stock-return.negative {
+    color: #ef4444;
+}
+
+.stock-chart {
+    width: 100% !important;
+    height: 42px !important;
+    background: transparent;
+}
+
+.stock-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 14px;
+    width: 100%;
+}
+
+.stock-label {
+    color: rgba(255,255,255,0.6);
+}
+
+.stock-value {
+    font-weight: 600;
+}
+
+.stock-return {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+
+
+.mini-chart-wrap {
+    width: 90px;
+    height: 42px;
+    flex-shrink: 0;
 }

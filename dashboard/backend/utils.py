@@ -4,7 +4,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 EQUITY_FILE = os.path.join(BASE_DIR, "equity.csv")
-TRADES_FILE = os.path.join(BASE_DIR, "old_bugged_trades.csv")
+TRADES_FILE = os.path.join(BASE_DIR, "trades.csv")
 
 def get_equity_data():
     df = pd.read_csv(EQUITY_FILE)
@@ -29,6 +29,7 @@ def get_trades_data():
 
 def get_positions():
     df = pd.read_csv(TRADES_FILE)
+    df = df.fillna("")
     positions = {}
     for _, row in df.iterrows():
         ticker = row['ticker']
@@ -41,9 +42,13 @@ def get_positions():
         if action in ['BUY', 'ADD']:
             positions[ticker] += qty
         elif action == "SELL":
-            positions[ticker] = 0
+            positions[ticker] -= qty
         elif action == "PARTIAL_SELL":
             positions[ticker] -= qty
+        
+        # prevent negative drift
+        if positions[ticker] < 0:
+            positions[ticker] =0
     # convert to list
     result = [
         {"ticker": t, "shares": s}
@@ -51,3 +56,25 @@ def get_positions():
     ]
 
     return result
+
+def get_positions_with_cost():
+    df = pd.read_csv(TRADES_FILE)
+    df = df.fillna("")
+    positions = {}
+    for _, row in df.iterrows():
+        ticker = row['ticker']
+        action = row['action']
+        qty = float(row['qty'])
+        price = float(row["price"]) if "price" in row else 0
+
+        if ticker not in positions:
+            positions[ticker[ticker]] = {
+                "shares": 0,
+                "cost": 0
+            }
+        if action in ["BUY", "ADD"]:
+            positions[ticker]["cost"] += qty * price
+            positions[ticker]["shares"] += qty
+        elif action in ["SELL", "PARTIAL_SELL"]:
+            #reduce shares only (avg-cost )
+            if positions[ticker]["shares"] > 0:

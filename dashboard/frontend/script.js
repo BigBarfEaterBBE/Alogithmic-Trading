@@ -262,6 +262,175 @@ async function loadAll() {
     await loadTrades();
 }
 
+async function loadTickerBar() {
+    // example data for now
+    // replace later with API calls
+    const stocks = [
+        {
+            ticker: "AAPL",
+            shares: 12,
+            return: 245,
+            logo: "https://companieslogo.com/img/orig/AAPL-bf1a4314.png",
+            chart: [100,110,108,120,126,133,138]
+        },
+        {
+            ticker: "NVDA",
+            shares: 12,
+            return: 245,
+            logo: "https://companieslogo.com/img/orig/NVDA-443be8e1.png",
+            chart: [100,110,108,120,126,133,138]
+        },
+        {
+            ticker: "TSLA",
+            shares: 12,
+            return: 245,
+            logo: "https://companieslogo.com/img/orig/TSLA_BIG.D-6b9e0a66.png",
+            chart: [100,110,108,120,126,133,138]
+        },
+        {
+            ticker: "META",
+            shares: 12,
+            return: 245,
+            logo: "https://companieslogo.com/img/orig/META-aae2e7f5.png",
+            chart: [100,110,108,120,126,133,138]
+        },
+        {
+            ticker: "AMZN",
+            shares: 12,
+            return: 245,
+            logo: "https://companieslogo.com/img/orig/AMZN-e9f942e4.png",
+            chart: [100,110,108,120,126,133,138]
+        }
+    ];
+    const track = document.getElementById("tickerTrack");
+    track.innerHTML = "";
+    track.style.display = "flex";
+
+    //duplicate cards 4 seamless scrolling
+    const loopedStocks = [...stocks, ...stocks];
+    loopedStocks.forEach(stock => {
+        const positive = stock.return >= 0;
+        const card = document.createElement("div");
+        card.className = "stock-card";
+        card.innerHTML = `
+            <div class="stock-header">
+                <div class="stock-left">
+                    <img class="stock-logo" src="${stock.logo}" onerror="this.src='https://placehold.co/60x60/11827/ffffff?text=${stock.ticker}'">
+                    <div>
+                        <div class="stock-ticker">${stock.ticker}</div>
+                    </div>
+                </div>
+                <div class="mini-chart-wrap">
+                    <canvas class="stock-chart"></canvas>
+                </div>
+            </div>
+            <div class="stock-row">
+                <span class="stock-label">Total Shares:</span>
+                <span class="stock-value">${stock.shares}</span>
+            </div>
+            <div class="stock-row">
+                <span class="stock-label">Total Return</span>
+                <span class="stock-return ${positive ?"positive" : "negative"}">
+                    ${positive ? "▲" : "▼"} ${Math.abs(stock.return)}%
+                </span>
+            </div>`;
+        track.appendChild(card);
+        const canvas = card.querySelector("canvas");
+        new Chart(canvas, {
+            type: "line",
+            data: {
+                labels: stock.chart.map((_, i) => i),
+                datasets: [{
+                    data: stock.chart,
+                    borderColor: positive ? "#22c55e" : "#ef4444",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: false
+                    }
+                }
+            }
+        });
+    });
+
+    // DRAG TO SCROLL
+    const wrapper = document.querySelector(".ticker-wrapper");
+    let position = 0;
+    let speed = 0.5;
+
+    const oneSetWidth = track.scrollWidth / 2;
+
+    let isDragging = false;
+    let startX = 0;
+    let startPosition = 0;
+
+    wrapper.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        wrapper.style.cursor = "grabbing";
+        startX = e.clientX;
+        startPosition = position;
+    });
+    wrapper.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startPosition = position;
+    }, { passive: true });
+
+    window.addEventListener("mouseup", () => {
+        isDragging = false;
+        wrapper.style.cursor = "grab";
+    });
+    window.addEventListener("touchend", () => {
+        isDragging = false;
+    });
+    window.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        position = startPosition + dx;
+    });
+    window.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+
+        const dx = e.touches[0].clientX - startX;
+        position = startPosition + dx;
+    }, { passive: true });
+
+    function animateTicker() {
+        if (!isDragging) {
+            position -= speed;
+        }
+        if (position <= -oneSetWidth) {
+            position += oneSetWidth;
+        }
+        if (position > 0) {
+            position -= oneSetWidth;
+        }
+        track.style.transform = `translateX(${position}px)`;
+        requestAnimationFrame(animateTicker);
+    }
+    wrapper.style.cursor = "grab";
+    animateTicker();
+}
+
 document.querySelectorAll(".chart-option").forEach(el => {
     el.addEventListener("click", () => {
         if (!el.dataset.range) return;
@@ -283,3 +452,4 @@ document.querySelectorAll(".strategy-option").forEach(el => {
 });
 
 loadAll();
+loadTickerBar();
