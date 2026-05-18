@@ -263,53 +263,15 @@ async function loadAll() {
 }
 
 async function loadTickerBar() {
-    // example data for now
-    // replace later with API calls
-    const stocks = [
-        {
-            ticker: "AAPL",
-            shares: 12,
-            return: 245,
-            logo: "https://companieslogo.com/img/orig/AAPL-bf1a4314.png",
-            chart: [100,110,108,120,126,133,138]
-        },
-        {
-            ticker: "NVDA",
-            shares: 12,
-            return: 245,
-            logo: "https://companieslogo.com/img/orig/NVDA-443be8e1.png",
-            chart: [100,110,108,120,126,133,138]
-        },
-        {
-            ticker: "TSLA",
-            shares: 12,
-            return: 245,
-            logo: "https://companieslogo.com/img/orig/TSLA_BIG.D-6b9e0a66.png",
-            chart: [100,110,108,120,126,133,138]
-        },
-        {
-            ticker: "META",
-            shares: 12,
-            return: 245,
-            logo: "https://companieslogo.com/img/orig/META-aae2e7f5.png",
-            chart: [100,110,108,120,126,133,138]
-        },
-        {
-            ticker: "AMZN",
-            shares: 12,
-            return: 245,
-            logo: "https://companieslogo.com/img/orig/AMZN-e9f942e4.png",
-            chart: [100,110,108,120,126,133,138]
-        }
-    ];
-    const track = document.getElementById("tickerTrack");
+    const res = await fetch("http://127.0.0.1:5000/api/prices");
+    const stocks = await res.json();
     track.innerHTML = "";
     track.style.display = "flex";
 
     //duplicate cards 4 seamless scrolling
     const loopedStocks = [...stocks, ...stocks];
     loopedStocks.forEach(stock => {
-        const positive = stock.return >= 0;
+        const positive = stock.pnl_percent >= 0;
         const card = document.createElement("div");
         card.className = "stock-card";
         card.innerHTML = `
@@ -326,12 +288,12 @@ async function loadTickerBar() {
             </div>
             <div class="stock-row">
                 <span class="stock-label">Total Shares:</span>
-                <span class="stock-value">${stock.shares}</span>
+                <span class="stock-value">${stock.shares.toFixed(2)}</span>
             </div>
             <div class="stock-row">
                 <span class="stock-label">Total Return</span>
                 <span class="stock-return ${positive ?"positive" : "negative"}">
-                    ${positive ? "▲" : "▼"} ${Math.abs(stock.return)}%
+                    ${positive ? "▲" : "▼"} ${Math.abs(stock.pnl_percent).toFixed(2)}%
                 </span>
             </div>`;
         track.appendChild(card);
@@ -372,64 +334,69 @@ async function loadTickerBar() {
         });
     });
 
-    // DRAG TO SCROLL
-    const wrapper = document.querySelector(".ticker-wrapper");
-    let position = 0;
-    let speed = 0.5;
-
-    const oneSetWidth = track.scrollWidth / 2;
-
-    let isDragging = false;
-    let startX = 0;
-    let startPosition = 0;
-
-    wrapper.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        wrapper.style.cursor = "grabbing";
-        startX = e.clientX;
-        startPosition = position;
-    });
-    wrapper.addEventListener("touchstart", (e) => {
-        isDragging = true;
-        startX = e.touches[0].clientX;
-        startPosition = position;
-    }, { passive: true });
-
-    window.addEventListener("mouseup", () => {
-        isDragging = false;
-        wrapper.style.cursor = "grab";
-    });
-    window.addEventListener("touchend", () => {
-        isDragging = false;
-    });
-    window.addEventListener("mousemove", (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        position = startPosition + dx;
-    });
-    window.addEventListener("touchmove", (e) => {
-        if (!isDragging) return;
-
-        const dx = e.touches[0].clientX - startX;
-        position = startPosition + dx;
-    }, { passive: true });
-
-    function animateTicker() {
-        if (!isDragging) {
-            position -= speed;
-        }
-        if (position <= -oneSetWidth) {
-            position += oneSetWidth;
-        }
-        if (position > 0) {
-            position -= oneSetWidth;
-        }
-        track.style.transform = `translateX(${position}px)`;
-        requestAnimationFrame(animateTicker);
-    }
-    wrapper.style.cursor = "grab";
-    animateTicker();
+    
 }
+
+const track = document.getElementById("tickerTrack");
+// DRAG TO SCROLL
+const wrapper = document.querySelector(".ticker-wrapper");
+let position = 0;
+let speed = 0.5;
+
+function getOneSetWidth() {
+    return track.scrollWidth / 2;
+}
+
+let isDragging = false;
+let startX = 0;
+let startPosition = 0;
+
+wrapper.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    wrapper.style.cursor = "grabbing";
+    startX = e.clientX;
+    startPosition = position;
+});
+wrapper.addEventListener("touchstart", (e) => {
+    isDragging = true;
+    startX = e.touches[0].clientX;
+    startPosition = position;
+}, { passive: true });
+
+window.addEventListener("mouseup", () => {
+    isDragging = false;
+    wrapper.style.cursor = "grab";
+});
+window.addEventListener("touchend", () => {
+    isDragging = false;
+});
+window.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    position = startPosition + dx;
+});
+window.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+
+    const dx = e.touches[0].clientX - startX;
+    position = startPosition + dx;
+}, { passive: true });
+
+function animateTicker() {
+    if (!isDragging) {
+        position -= speed;
+    }
+    if (position <= -getOneSetWidth()) {
+        position += getOneSetWidth();
+    }
+    if (position > 0) {
+        position -= getOneSetWidth();
+    }
+    track.style.transform = `translateX(${position}px)`;
+    requestAnimationFrame(animateTicker);
+}
+wrapper.style.cursor = "grab";
+animateTicker();
 
 document.querySelectorAll(".chart-option").forEach(el => {
     el.addEventListener("click", () => {
