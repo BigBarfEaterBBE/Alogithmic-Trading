@@ -301,14 +301,34 @@ async function loadTickerBar() {
         new Chart(canvas, {
             type: "line",
             data: {
-                labels: stock.chart.map((_, i) => i),
+                labels: (stock.chart || []).map((_, i) => i),
                 datasets: [{
-                    data: stock.chart,
+                    data: stock.chart || [],
                     borderColor: positive ? "#22c55e" : "#ef4444",
                     borderWidth: 2,
                     pointRadius: 0,
                     tension: 0.4,
-                    fill: false
+                    fill: true,
+                    backgroundColor: (context) => {
+                        const chart = context.chart;
+                        const { ctx, chartArea } = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(
+                            0,
+                            chartArea.top,
+                            0,
+                            chartArea.bottom
+                        );
+                        if (positive) {
+                        gradient.addColorStop(0, "rgba(34,197, 94, 0.35)");
+                        gradient.addColorStop(1, "rgba(34,197, 94, 0)");
+                        }
+                        else {
+                            gradient.addColorStop(0, "rgba(239,68,68,0.35)");
+                            gradient.addColorStop(1, "rgba(239,68,68,0)");
+                        }
+                        return gradient;
+                    }
                 }]
             },
             options: {

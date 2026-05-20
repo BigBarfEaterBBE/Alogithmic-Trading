@@ -235,8 +235,8 @@ for ticker in tickers:
         stop_price = avg_entry - (atr*2)
 
         # Implementing partial profit levels
-        tp1 = avg_entry * 1.02 # +2 %
-        tp2 = avg_entry * 1.04 # +4 %
+        tp1 = avg_entry * 1.04 # +2 %
+        tp2 = avg_entry * 1.06 # +4 %
         
         # FULL TAKE PROFIT
         if current_price >= tp2:

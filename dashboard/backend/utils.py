@@ -9,6 +9,8 @@ from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from alpaca.trading.client import TradingClient
 
+from datetime import datetime, timedelta
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(CURRENT_DIR))
 sys.path.append(PROJECT_ROOT)
@@ -218,7 +220,33 @@ def combine_positions(pb_positions, mr_positions):
             "pnl": round(pos["pnl"], 2),
             "pnl_percent": round(pnl_percent * 100,2),
             "logo": f"https://assets.parqet.com/logos/symbol/{ticker}?format=png",
-            "chart": [100,102,101,105,108],
+            "chart": get_mini_chart(ticker),
             "strategies": pos["strategies"]
         })
     return result
+
+def get_mini_chart(ticker):
+    try:
+        end = datetime.utcnow()
+        start = end - timedelta(days = 7)
+        request = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe = TimeFrame(1, TimeFrameUnit.Hour),
+            start = start,
+            end = end,
+            feed="iex"
+        )
+        bars = data_client.get_stock_bars(request)
+        if ticker not in bars.data:
+            return []
+        prices = [bar.close for bar in bars.data[ticker]]
+        if not prices:
+            return []
+        base = prices[0]
+        normalized = [
+            round((p / base) * 100, 2) for p in prices
+        ]
+        return normalized
+    except Exception as e:
+        print(f"CHART ERROR {ticker}: {e}")
+        return []
