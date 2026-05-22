@@ -3,6 +3,8 @@ let equityData = [];
 let currentRange = "5D";
 let currentStrategy = "TOTAL";
 let currentPositionsFilter = "TOTAL";
+let showRollingAverage = true;
+let showFlatAverage = false;
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     let data = await res.json();
@@ -125,6 +127,15 @@ async function loadEquity(range = "5D") {
         return;
     }
 
+    
+    const flatAverage = values.reduce((a,b) => a+b,0) / values.length;
+    const rollingWindow = Math.min(20,Math.max(5,Math.floor(values.length/8)));
+    const rollingAverage = values.map((_, i) => {
+        const start = Math.max(0,i-rollingWindow+1);
+        const subset = values.slice(start,i+1);
+        return subset.reduce((a,b) => a+b,0) / subset.length;
+    });
+
     const startValue = values[0];
     const endValue = values[values.length - 1];
     const positive = endValue >= startValue;
@@ -141,6 +152,9 @@ async function loadEquity(range = "5D") {
     if (equityChart) {
         equityChart.destroy();
     }
+
+    const averageValue = values.reduce((sum,val) => sum + val, 0) / values.length;
+    const averageLine = values.map(() => averageValue);
 
     equityChart = new Chart(ctx, {
         type: "line",
@@ -177,7 +191,28 @@ async function loadEquity(range = "5D") {
 
                     return gradient;
                 }
-            }]
+            },
+            ...(showFlatAverage ? [{
+                label: "Flat Avg",
+                data: averageLine,
+                borderColor : "rgba(255,255,255,0.55)",
+                borderWidth: 2,
+                borderDash: [8,6],
+                pointRadius: 0,
+                fill: false,
+                tension: 0
+            }] : []),
+            // dashed rolling average line
+            ...(showRollingAverage ? [{
+                label: "Rolling Avg",
+                data: rollingAverage,
+                borderColor: "rgba(255,255,255,0.7)",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.3,
+                fill: false
+            }] : [])
+        ]
         },
         options: {
             responsive: true,
@@ -197,6 +232,24 @@ async function loadEquity(range = "5D") {
                     padding: 12,
                     titleColor: "#fff",
                     bodyColor: "#fff",
+                    callbacks: {
+                        label: function(context) {
+                            if (context.dataset.label !== "Portfolio Equity") {
+                                return null;
+                            }
+                            const value = context.raw;
+                            const index = context.dataIndex;
+                            const rolling = rollingAverage[index];
+                            const flat = flatAverage;
+                            const rollingDiff = ((value - rolling) / rolling) * 100;
+                            const flatDiff = ((value - flat) / flat) * 100;
+                            return [
+                                `Equity: $${value.toLocaleString()}`,
+                                `Rolling Avg: ${rollingDiff >= 0 ? "+" : ""}${rollingDiff.toFixed(2)}%`,
+                                `Flat Avg: ${flatDiff >= 0 ? "+" : ""}${flatDiff.toFixed(2)}%`
+                            ];
+                        }
+                    }
                 }
             },
 
@@ -349,6 +402,10 @@ async function loadTickerBar() {
             <div class="stock-row">
                 <span class="stock-label">Total Shares:</span>
                 <span class="stock-value">${stock.shares.toFixed(2)}</span>
+            </div>
+            <div class="stock-row">
+                <span class="stock-label">Day Return:</span>
+                <span class="stock-value ${stock.day_change_percent >= 0 ? "positive" : "negative"}">${stock.day_change_percent >= 0 ? "▲" : "▼"}${Math.abs(stock.day_change_percent).toFixed(2)}%</span>
             </div>
             <div class="stock-row">
                 <span class="stock-label">Total Return</span>
@@ -505,6 +562,17 @@ document.querySelectorAll(".positions-filter").forEach(el => {
         currentPositionsFilter = el.dataset.positionFilter;
         loadPositions();
     });
+});
+
+document.getElementById("toggleRolling").addEventListener("click", (e) => {
+    showRollingAverage = !showRollingAverage;
+    document.getElementById("toggleRolling").classList.toggle("active", showRollingAverage);
+    loadEquity(currentRange);
+});
+document.getElementById("toggleFlat").addEventListener("click", (e) => {
+    showFlatAverage = !showFlatAverage;
+    document.getElementById("toggleFlat").classList.toggle("active", showFlatAverage);
+    loadEquity(currentRange);
 });
 
 loadAll();

@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
     <head>
         <title>Trading Dashboard</title>
@@ -17,6 +17,17 @@
                         <h2>Portfolio Equity</h2>
                     </div>
                     <div class="chart-buttons">
+                        <div class="avg-toggle-group">
+                            <div class="toggle-wrapper active" id="toggleRolling">
+                                <div class="toggle-switch"></div>
+                                <span>Rolling Avg</span>
+                            </div>
+                            <div class="toggle-wrapper" id="toggleFlat">
+                                <div class="toggle-switch"></div>
+                                <span>Flat Avg</span>
+                            </div>
+                        </div>
+
                         <span class="chart-option" data-range="1D">1D</span>
                         <span class="divider">/</span>
                         <span class="chart-option active" data-range="5D">5D</span>
@@ -73,4 +84,4 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="script.js"></script>
     </body>
-</html>>
+</html>

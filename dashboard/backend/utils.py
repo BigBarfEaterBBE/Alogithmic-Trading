@@ -106,7 +106,7 @@ def combine_positions(pb_positions, mr_positions):
 def get_mini_chart(ticker):
     try:
         end = datetime.utcnow()
-        start = end - timedelta(days = 7)
+        start = end - timedelta(days = 2)
         request = StockBarsRequest(
             symbol_or_symbols=ticker,
             timeframe = TimeFrame(1, TimeFrameUnit.Hour),
