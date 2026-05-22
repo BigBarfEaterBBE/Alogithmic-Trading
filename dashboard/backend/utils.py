@@ -5,6 +5,7 @@ import sys
 from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
 from alpaca.data.requests import StockBarsRequest
+from alpaca.data.requests import StockSnapshotRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from alpaca.trading.client import TradingClient
@@ -65,119 +66,14 @@ def get_trades_data():
 
     return df.to_dict(orient="records")
 
-# def get_positions():
-#     df = pd.read_csv(TRADES_FILE)
-#     df = df.fillna("")
-#     positions = {}
-#     for _, row in df.iterrows():
-#         ticker = row['ticker']
-#         action = str(row["action"]).replace(" ", "_").strip().upper()
-#         qty = float(row['qty'])
-
-#         if ticker not in positions:
-#             positions[ticker] = 0
-        
-#         if action in ['BUY', 'ADD']:
-#             positions[ticker] += qty
-#         elif action == "SELL":
-#             positions[ticker] -= qty
-#         elif action == "PARTIAL_SELL":
-#             positions[ticker] -= qty
-        
-#         # prevent negative drift
-#         if positions[ticker] < 0:
-#             positions[ticker] =0
-#     # convert to list
-#     result = [
-#         {"ticker": t, "shares": s}
-#         for t, s in positions.items() if s > 0
-#     ]
-
-#     return result
-
-# def get_positions_with_cost():
-#     df = pd.read_csv(TRADES_FILE)
-#     df = df.fillna("")
-#     positions = {}
-#     for _, row in df.iterrows():
-#         ticker = row['ticker']
-#         action = row['action']
-#         qty = float(row['qty'])
-#         price = float(row["price"]) if "price" in row else 0
-
-#         if ticker not in positions:
-#             positions[ticker] = {
-#                 "shares": 0,
-#                 "cost": 0
-#             }
-#         if action in ["BUY", "ADD"]:
-#             positions[ticker]["cost"] += qty * price
-#             positions[ticker]["shares"] += qty
-#         elif action in ["SELL", "PARTIAL_SELL"]:
-#             #reduce shares only (avg-cost )
-#             if positions[ticker]["shares"] > 0:
-#                 avg_cost = positions[ticker]["cost"] / positions[ticker]["shares"]
-#                 positions[ticker]["shares"] -= qty
-#                 positions[ticker]["cost"] -= qty * avg_cost
-#         if positions[ticker]["shares"] < 0:
-#             positions[ticker]["shares"] = 0
-#             positions[ticker]["cost"] = 0
-#     result = []
-#     for t, v in positions.items():
-#         if v["shares"] > 0:
-#             result.append({
-#                 "ticker": t,
-#                 "shares": v["shares"],
-#                 "avg_cost": v["cost"] / v["shares"] if v["shares"] > 0 else 0
-#             })
-#     return result
-
-# def get_live_prices():
-#     positions = get_positions_with_cost()
-#     if not positions:
-#         return []
-#     tickers = [p["ticker"] for p in positions]
-#     try:
-#         quote_request = StockLatestQuoteRequest(symbol_or_symbols=tickers)
-#         quotes = data_client.get_stock_latest_quote(quote_request)
-#         result = []
-#         for pos in positions:
-#             ticker = pos["ticker"]
-#             if ticker not in quotes:
-#                 continue
-#             quote = quotes[ticker]
-#             current_price = quote.ask_price or quote.bid_price or avg_cost
-#             shares = pos["shares"]
-#             avg_cost = pos["avg_cost"]
-
-#             market_value = shares * current_price
-#             cost_basis = shares * avg_cost
-
-#             pnl = market_value - cost_basis
-#             pnl_percent = (
-#                 (current_price - avg_cost) / avg_cost * 100
-#                 if avg_cost > 0 else 0
-#             )
-#             result.append({
-#                 "ticker": ticker,
-#                 "shares": round(shares, 4),
-#                 "avg_cost": round(avg_cost, 2),
-#                 "current": round(current_price, 2),
-#                 "market_value": round(market_value, 2),
-#                 "pnl": round(pnl, 2),
-#                 "pnl_percent": round(pnl_percent, 2)
-#             })
-#         return result
-#     except Exception as e:
-#         print(f"PRICE FETCH ERROR: {e}")
-#         return []
     
 def combine_positions(pb_positions, mr_positions):
-    combined = {}
+    result = []
     all_positions = [
         ("PB", pb_positions),
         ("MR", mr_positions)
     ]
+
     for strategy, positions in all_positions:
         for pos in positions:
             ticker = pos.symbol
@@ -185,44 +81,26 @@ def combine_positions(pb_positions, mr_positions):
             avg_cost = float(pos.avg_entry_price)
             market_value = float(pos.market_value)
             unrealized_pl = float(pos.unrealized_pl)
+            pnl_percent = (
+                unrealized_pl / (shares * avg_cost)
+                if shares * avg_cost > 0 else 0
+            )
+            price_data = get_price_change_data(ticker)
 
-            if ticker not in combined:
-                combined[ticker] = {
-                    "ticker": ticker,
-                    "shares": 0,
-                    "cost_basis": 0,
-                    "market_value": 0,
-                    "pnl": 0,
-                    "strategies": []
-                }
-            combined[ticker]["shares"] += shares
-            combined[ticker]["cost_basis"] += shares * avg_cost
-            combined[ticker]["market_value"] += market_value
-            combined[ticker]["pnl"] += unrealized_pl
-
-            combined[ticker]["strategies"].append({
+            result.append({
+                "ticker": ticker,
                 "strategy": strategy,
-                "shares": shares
+                "shares": round(shares,4),
+                "avg_cost": round(avg_cost, 2),
+                "market_value": round(market_value, 2),
+                "pnl": round(unrealized_pl, 2),
+                "pnl_percent": round(pnl_percent * 100,2),
+                "current_price": price_data["current_price"],
+                "day_change_percent": price_data["change_percent"],
+                "day_change_dollars": price_data["change_dollars"],
+                "logo": f"https://assets.parqet.com/logos/symbol/{ticker}?format=png",
+                "chart": get_mini_chart(ticker)
             })
-    result = []
-    for ticker, pos in combined.items():
-        avg_cost = (
-            pos["cost_basis"] / pos["shares"] if pos["shares"] > 0 else 0
-        )
-        pnl_percent = (
-            pos["pnl"] / pos["cost_basis"] if pos["cost_basis"] > 0 else 0
-        )
-        result.append({
-            "ticker": ticker,
-            "shares": round(pos["shares"], 4),
-            "avg_cost": round(avg_cost, 2),
-            "market_value": round(pos["market_value"], 2),
-            "pnl": round(pos["pnl"], 2),
-            "pnl_percent": round(pnl_percent * 100,2),
-            "logo": f"https://assets.parqet.com/logos/symbol/{ticker}?format=png",
-            "chart": get_mini_chart(ticker),
-            "strategies": pos["strategies"]
-        })
     return result
 
 def get_mini_chart(ticker):
@@ -250,3 +128,45 @@ def get_mini_chart(ticker):
     except Exception as e:
         print(f"CHART ERROR {ticker}: {e}")
         return []
+
+def get_price_change_data(ticker):
+    try:
+        end = datetime.utcnow()
+        start = end - timedelta(days = 1)
+        request = StockBarsRequest(
+            symbol_or_symbols=ticker,
+            timeframe=TimeFrame(15, TimeFrameUnit.Minute),
+            start=start,
+            end=end,
+            feed="iex"
+        )
+        bars = data_client.get_stock_bars(request)
+        if ticker not in bars.data:
+            return {
+                "change_percent": 0,
+                "change_dollars": 0,
+                "current_price": 0
+            }
+        prices = [bar.close for bar in bars.data[ticker]]
+        if len(prices) < 2:
+            return {
+                "change_percent": 0,
+                "change_dollars": 0,
+                "current_price": prices[0] if prices else 0
+            }
+        first_price = prices[0]
+        current_price = prices[-1]
+        change_percent = ((current_price - first_price) / first_price) * 100
+        change_dollars = current_price - first_price
+        return {
+            "change_percent": round(change_percent, 2),
+            "change_dollars": round(change_dollars, 2),
+            "current_price": round(current_price, 2)
+        }
+    except Exception as e:
+        print(f"CHANGE ERROR {ticker}: {e}")
+        return {
+            "change_percent": 0,
+            "change_dollars": 0,
+            "current_price": 0
+        }

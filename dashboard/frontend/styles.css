@@ -124,7 +124,7 @@ body.profit {
 
 body.loss {
     background:
-        radial-gradient(circle at top left, rgba(329, 68, 68, 0.18), transparent 40%),
+        radial-gradient(circle at top left, rgba(239, 68, 68, 0.18), transparent 40%),
         radial-gradient(circle at bottom right, rgba(220,38,38,0.14), transparent 50%),
         linear-gradient(135deg, #050816 0%, #0b1120 45%, #0f172a 100%);
 }
@@ -269,7 +269,7 @@ ul {
 h1 {
     color: #e2e8f0;
     font-size: 42px;
-    font-weight: 600px;
+    font-weight: 600;
     letter-spacing: -1px;
     text-shadow: 0 0 12px rgba(56,189,248,0.35);
 }
@@ -424,4 +424,95 @@ h1 {
     width: 90px;
     height: 42px;
     flex-shrink: 0;
+}
+
+.positions-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.positions-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.positions-filter {
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.positions-filter:hover {
+    color: #38bdf8;
+}
+
+.positions-filter.active {
+    color: #38bdf8;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(56,189,248,0.35);
+}
+
+.positions-box {
+    margin-top: 24px;
+    background: rgba(17,24,39,0.92);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+}
+
+.positions-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.positions-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+}
+
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.positions-table thead {
+    background: rgba(255,255,255,0.03);
+}
+
+.positions-table th {
+    text-align: left;
+    padding: 14px 18px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+}
+
+.positions-table td {
+    padding: 16px 18px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    color: white;
+    font-weight: 500;
+}
+
+.positions-table tr:hover {
+    background: rgba(255,255,255,0.025);
+}
+
+.positions-table td.positive,
+.positive {
+    color: #22c55e;
+}
+
+.positions-table td.negative,
+.negative {
+    color: #ef4444;
 }

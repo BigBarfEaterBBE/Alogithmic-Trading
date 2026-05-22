@@ -1,10 +1,11 @@
 let equityChart = null;
 let equityData = [];
-let currentRange = "1D";
+let currentRange = "5D";
 let currentStrategy = "TOTAL";
+let currentPositionsFilter = "TOTAL";
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
-    const data = await res.json();
+    let data = await res.json();
     console.log(data);
     equityData = data;
 
@@ -224,21 +225,37 @@ async function loadEquity(range = "5D") {
 
 async function loadPositions() {
     const res = await fetch("http://127.0.0.1:5000/api/positions");
-    const data = await res.json();
+    let data = await res.json();
+
+    if (currentPositionsFilter !== "TOTAL") {
+        data = data.filter(pos => pos.strategy === currentPositionsFilter
+        );
+    }
     
-    const list = document.getElementById("positions");
-    list.innerHTML = "";
+    const body = document.getElementById("positionsBody");
+    body.innerHTML = "";
     
     data.forEach(pos => {
-        const li = document.createElement("li");
-        li.textContent = `${pos.ticker}: ${pos.shares} shares`;
-        list.appendChild(li);
+        const row = document.createElement("tr");
+        const positiveDay = pos.day_change_dollars >= 0;
+        const positiveReturn = pos.pnl_percent >= 0;
+        row.innerHTML = `
+            <td>${pos.ticker}</td>
+            <td>${pos.shares.toFixed(2)}</td>
+            <td>$${pos.market_value.toLocaleString()}</td>
+            <td class="${positiveDay ? "positive" : "negative"}">
+                ${positiveDay ? "+" : ""}${pos.day_change_percent.toFixed(2)}%
+            </td>
+            <td class="${positiveReturn ? "positive" : "negative"}">
+                ${positiveReturn ? "+" : ""}${pos.pnl_percent.toFixed(2)}%
+            </td>`;
+        body.appendChild(row);
     });
 }
 
 async function loadTrades() {
     const res = await fetch("http://127.0.0.1:5000/api/trades");
-    const data = await res.json();
+    let data = await res.json();
 
     const table = document.getElementById("tradesTable");
     table.innerHTML = "";
@@ -435,6 +452,15 @@ document.querySelectorAll(".strategy-option").forEach(el => {
         el.classList.add("active");
         currentStrategy = el.dataset.strategy;
         loadEquity(currentRange);
+    });
+});
+
+document.querySelectorAll(".positions-filter").forEach(el => {
+    el.addEventListener("click", () => {
+        document.querySelectorAll(".positions-filter").forEach(e => e.classList.remove("active"));
+        el.classList.add("active");
+        currentPositionsFilter = el.dataset.positionFilter;
+        loadPositions();
     });
 });
 

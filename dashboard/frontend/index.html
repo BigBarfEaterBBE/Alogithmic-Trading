@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html>
     <head>
         <title>Trading Dashboard</title>
@@ -17,9 +17,9 @@
                         <h2>Portfolio Equity</h2>
                     </div>
                     <div class="chart-buttons">
-                        <span class="chart-option active" data-range="1D">1D</span>
+                        <span class="chart-option" data-range="1D">1D</span>
                         <span class="divider">/</span>
-                        <span class="chart-option" data-range="5D">5D</span>
+                        <span class="chart-option active" data-range="5D">5D</span>
                         <span class="divider">/</span>
                         <span class="chart-option" data-range="1M">1M</span>
                         <span class="divider">/</span>
@@ -39,8 +39,28 @@
             </div>
             <div class="bottom-section">
                 <div class="card">
-                    <h2>Open Positions</h2>
-                    <ul id="positions"></ul>
+                    <div class="positions-top">
+                        <h2>Open Positions</h2>
+                        <div class="positions-filters">
+                            <span class="positions-filter active" data-position-filter="TOTAL">TOTAL</span>
+                            <span class="divider">/</span>
+                            <span class="positions-filter" data-position-filter="MR">MR</span>
+                            <span class="divider">/</span>
+                            <span class="positions-filter" data-position-filter="PB">PB</span>
+                        </div>
+                    </div>
+                    <table class="positions-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Shares</th>
+                                <th>Value</th>
+                                <th>1D Chg</th>
+                                <th>Return</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsBody"></tbody>
+                    </table>
                 </div>
                 <div class="card">
                     <h2>Trade History</h2>
@@ -53,4 +73,4 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="script.js"></script>
     </body>
-</html>
+</html>>
