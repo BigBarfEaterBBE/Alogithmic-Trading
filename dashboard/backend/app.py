@@ -44,7 +44,7 @@ def positions():
     mr_positions = mr_client.get_all_positions()
     return jsonify(combine_positions(pb_positions, mr_positions))
 
-# MOCK ENDPOINT DATA FOR NOW
+
 @app.route("/api/prices")
 def prices():
     pb_positions = pb_client.get_all_positions()

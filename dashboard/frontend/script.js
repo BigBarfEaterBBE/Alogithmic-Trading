@@ -227,8 +227,51 @@ async function loadPositions() {
     const res = await fetch("http://127.0.0.1:5000/api/positions");
     let data = await res.json();
 
-    if (currentPositionsFilter !== "TOTAL") {
-        data = data.filter(pos => pos.strategy === currentPositionsFilter
+    if (currentPositionsFilter == "TOTAL") {
+        const merged = {};
+
+        data.forEach(pos => {
+            if (!merged[pos.ticker]) {
+                merged[pos.ticker] = {
+                    ticker: pos.ticker,
+                    shares: 0,
+                    market_value: 0,
+                    pnl: 0,
+                    cost_basis: 0,
+                    weighted_day_change: 0,
+                    day_change_dollars: 0
+                };
+            }
+            const shares = Number(pos.shares);
+            const marketValue = Number(pos.market_value);
+            const pnl = Number(pos.pnl);
+            const avgCost = Number(pos.avg_cost);
+            const dayPercent = Number(pos.day_change_percent);
+            const dayDollars = Number(pos.day_change_dollars);
+
+            merged[pos.ticker].shares += shares;
+            merged[pos.ticker].market_value += marketValue;
+            merged[pos.ticker].pnl += pnl;
+
+            merged[pos.ticker].cost_basis += (avgCost * shares);
+
+            
+            // weighted averaging
+            merged[pos.ticker].day_change_dollars += dayDollars;
+            merged[pos.ticker].weighted_day_change += (dayPercent * marketValue);
+        });
+
+        data = Object.values(merged).map(pos => ({
+            ...pos,
+            pnl_percent:
+                pos.cost_basis > 0 ? (pos.pnl / pos.cost_basis) * 100 : 0,
+            
+            day_change_percent:
+                pos.market_value > 0 ? pos.weighted_day_change / pos.market_value : 0
+        }));
+    } else{
+        data = data.filter(
+            pos => pos.strategy === currentPositionsFilter
         );
     }
     
@@ -236,13 +279,13 @@ async function loadPositions() {
     body.innerHTML = "";
     
     data.forEach(pos => {
+        const positiveDay = Number(pos.day_change_dollars) >= 0;
+        const positiveReturn = Number(pos.pnl_percent) >= 0;
         const row = document.createElement("tr");
-        const positiveDay = pos.day_change_dollars >= 0;
-        const positiveReturn = pos.pnl_percent >= 0;
         row.innerHTML = `
             <td>${pos.ticker}</td>
             <td>${pos.shares.toFixed(2)}</td>
-            <td>$${pos.market_value.toLocaleString()}</td>
+            <td>$${Number(pos.market_value).toLocaleString()}</td>
             <td class="${positiveDay ? "positive" : "negative"}">
                 ${positiveDay ? "+" : ""}${pos.day_change_percent.toFixed(2)}%
             </td>
