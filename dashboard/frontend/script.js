@@ -8,6 +8,8 @@ let showFlatAverage = false;
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     let data = await res.json();
+    const tradesRes = await fetch("http://127.0.0.1:5000/api/trades");
+    const trades = await tradesRes.json();
     console.log(data);
     equityData = data;
 
@@ -75,6 +77,7 @@ async function loadEquity(range = "5D") {
 
     let values = [];
     let labels = [];
+    const chartPoints = [];
     if (currentStrategy === "TOTAL") {
         let lastMR = null;
         let lastPB = null;
@@ -88,19 +91,22 @@ async function loadEquity(range = "5D") {
             }
 
             if (lastMR !== null && lastPB !== null) {
-                values.push(lastMR + lastPB);
-                const date = new Date(d.time);
-
-                labels.push(
-                    date.toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true
-                    })
-                );
+                chartPoints.push({
+                    time: d.time,
+                    value: lastMR + lastPB
+                });
             }
+        });
+        values = chartPoints.map(p => p.value);
+        labels = chartPoints.map(p => {
+            const date = new Date(p.time);
+            return date.toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true
+            });
         });
     } else {
         filtered = filtered.filter(
@@ -155,6 +161,31 @@ async function loadEquity(range = "5D") {
 
     const averageValue = values.reduce((sum,val) => sum + val, 0) / values.length;
     const averageLine = values.map(() => averageValue);
+    const tradeReplayPoints = [];
+    trades.forEach(trade => {
+        const tradeTime = new Date(trade.time);
+        let closestIndex = 0;
+        let closestDiff = Infinity;
+
+        chartPoints.forEach((point,index) => {
+            const diff = Math.abs(new Date(point.time) - tradeTime);
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closestIndex = index;
+            }
+        });
+        tradeReplayPoints.push({
+            x: labels[closestIndex].time,
+            y: chartPoints[closestIndex],
+            action: trade.action,
+            ticker: trade.ticker,
+            shares: Number(trade.shares || 0),
+            price: Number(trade.price || 0),
+            strategy: trade.strategy
+        });
+    });
+
+
 
     equityChart = new Chart(ctx, {
         type: "line",
@@ -211,7 +242,37 @@ async function loadEquity(range = "5D") {
                 pointRadius: 0,
                 tension: 0.3,
                 fill: false
-            }] : [])
+            }] : []),
+            {
+                label: "Trade Replay",
+                data: tradeReplayPoints,
+                parsing: false,
+                showLine: false,
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                pointBackgroundColor: (ctx) => {
+                    const action = String(ctx.raw?.action || "").toUpperCase();
+                    if (action.includes("BUY") || action.includes("ADD")) {
+                        return "#22c55e";
+                    }
+                    if (action.includes("SELL")) {
+                        return "#ef4444";
+                    }
+                    return "#38bdf8";
+                },
+                pointBorderColor: "#ffffff",
+                pointBorderWidth: 2,
+                pointStyle: (ctx) => {
+                    const action = String(ctx.raw?.action || "").toUpperCase();
+                    if (action.includes("BUY") || action.includes("ADD")) {
+                        return "triangle";
+                    }
+                    if (action.includes("SELL")) {
+                        return "rectRot";
+                    }
+                    return "circle";
+                }
+            }
         ]
         },
         options: {
@@ -234,6 +295,16 @@ async function loadEquity(range = "5D") {
                     bodyColor: "#fff",
                     callbacks: {
                         label: function(context) {
+                            if (context.dataset.label === "Trade Replay") {
+                                const trade = context.raw;
+                                return [
+                                    `${trade.action} ${trade.ticker}`,
+                                    `${Number(trade.shares).toFixed(2)} shares`,
+                                    `@ $${Number(trade.price).toFixed(2)}`,
+                                    `${trade.strategy}`
+                                ];
+                            }
+
                             if (context.dataset.label !== "Portfolio Equity") {
                                 return null;
                             }
@@ -261,7 +332,7 @@ async function loadEquity(range = "5D") {
                     ticks: {
                         color: "rgba(255,255,255,0.6)",
                         maxTicksLimit: 6
-                    }
+                    },
                 },
                 y: {
                     grid: {
@@ -353,26 +424,87 @@ async function loadTrades() {
     const res = await fetch("http://127.0.0.1:5000/api/trades");
     let data = await res.json();
 
-    const table = document.getElementById("tradesTable");
-    table.innerHTML = "";
+    const container = document.getElementById("tradesTable");
+    container.innerHTML = "";
 
-    data.slice(-20).forEach(trade => {
-        const row = document.createElement("tr");
+    const recentTrades = data.slice(-20).reverse();
 
-        Object.values(trade).forEach(val => {
-            const cell = document.createElement("td");
-            cell.textContent = val;
-            row.appendChild(cell);
-        });
+    document.getElementById("tradeCount").textContent =
+    `${recentTrades.length} Trades`;
 
-        table.appendChild(row);
+    recentTrades.forEach(trade => {
+        const side = String(trade.side || trade.action || "").toUpperCase();
+        const buyActions = ["BUY", "ADD"];
+        const sellActions = ["SELL", "PARTIAL_SELL", "PARTIAL SELL"];
+        const isBuy = buyActions.includes(side);
+        const isSell = sellActions.includes(side);
+        const ticker = trade.ticker || trade.symbol || trade.asset || "N/A";
+        const qty = Number(trade.qty || trade.shares || 0);
+        const price = Number(trade.price || trade.fill_price || 0);
+        const strategy = trade.strategy;
+        const timestamp = trade.time || trade.timestamp || "";
+        const formattedTime = timestamp ? new Date(timestamp).toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true
+        }) : "Unknown";
+        const tradeCard = document.createElement("div");
+        tradeCard.className = "trade-item";
+        tradeCard.innerHTML = `
+            <div class="trade-left">
+                <div class="trade-side ${isBuy ? "buy" : "sell"}">
+                    ${side.replace("_", " ")}
+                </div>
+                <div class="trade-main">
+                    <div class="trade-top-row">
+                        <span class="trade-ticker">
+                            ${ticker}
+                        </span>
+                        <span class="trade-strategy">
+                            ${strategy}
+                        </span>
+                    </div>
+                    <div class="trade-meta">
+                        ${qty.toFixed(2)} shares * $${price.toFixed(2)}
+                    </div>
+                </div>
+            </div>
+            <div class="trade-right">
+                <div class="trade-total">
+                    $${(qty * price).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })}
+                </div>
+                <div class="trade-time">
+                    ${formattedTime}
+                </div>
+            </div>
+        `;
+        container.appendChild(tradeCard);
     });
 }
 
 async function loadAll() {
-    await loadEquity(currentRange);
-    await loadPositions();
-    await loadTrades();
+    try {
+        await loadEquity(currentRange);
+    } catch (err) {
+        console.error("Equity failed:", err);
+    }
+
+    try {
+        await loadPositions();
+    } catch (err) {
+        console.error("Positions failed:", err);
+    }
+
+    try {
+        await loadTrades();
+    } catch (err) {
+        console.error("Trades failed:", err);
+    }
 }
 
 async function loadTickerBar() {
