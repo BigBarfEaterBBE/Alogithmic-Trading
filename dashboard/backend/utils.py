@@ -64,8 +64,58 @@ def get_trades_data():
 
     df = df.fillna("")
 
-    return df.to_dict(orient="records")
+    # normalize
+    df["qty"] = pd.to_numeric(df.get("qty", df.get("shares", 0)), errors="coerce").fillna(0)
+    df["price"] = pd.to_numeric(df.get("price", 0), errors="coerce").fillna(0)
 
+    # track positiions per strategy + ticker
+    positions = {}
+    realized_pnls = []
+    df["time"] = pd.to_datetime(df["time"])
+    df = df.sort_values("time")
+    for _, row in df.iterrows():
+        ticker = row.get("ticker") or row.get("symbol")
+        strategy = row.get("strategy", "")
+        side = str(row.get("side") or row.get("action") or "").upper()
+        qty = float(row["qty"] or 0)
+        price = float(row['price'] or 0)
+
+        key = (strategy, ticker)
+        if key not in positions:
+            positions[key] = {
+                "shares": 0,
+                "avg_cost":0
+            }
+        pos = positions[key]
+        realized = None
+        if side in ["BUY", "ADD"]:
+            total_cost = (
+                pos["shares"] * pos["avg_cost"]
+            ) + (qty * price)
+
+            pos["shares"] += qty
+
+            if pos["shares"] > 0:
+                pos["avg_cost"] = total_cost / pos["shares"]
+        elif side in ["SELL", "PARTIAL_SELL", "PARTIAL SELL"]:
+            if pos['avg_cost'] is not None:
+                realized = round((price - pos['avg_cost']) * qty, 2)
+            else:
+                realized = 0
+            pos["shares"] -= qty
+            if pos["shares"] <= 0:
+                pos["shares"] = 0
+                pos['avg_cost'] = 0
+        realized_pnls.append(round(realized,2) if realized is not None else None)
+    df['realized_pnl'] = realized_pnls
+    df = df.astype(object)
+    df = df.where(pd.notnull(df), None)
+    records = df.to_dict(orient="records")
+    for row in records:
+        for key, value in row.items():
+            if pd.isna(value):
+                row[key] = None
+    return records
     
 def combine_positions(pb_positions, mr_positions):
     result = []
@@ -129,44 +179,33 @@ def get_mini_chart(ticker):
         print(f"CHART ERROR {ticker}: {e}")
         return []
 
-def get_price_change_data(ticker):
+def get_price_change_data(symbols):
     try:
         end = datetime.utcnow()
         start = end - timedelta(days = 1)
         request = StockBarsRequest(
-            symbol_or_symbols=ticker,
+            symbol_or_symbols=symbols,
             timeframe=TimeFrame(15, TimeFrameUnit.Minute),
             start=start,
             end=end,
             feed="iex"
         )
         bars = data_client.get_stock_bars(request)
-        if ticker not in bars.data:
-            return {
-                "change_percent": 0,
-                "change_dollars": 0,
-                "current_price": 0
+        result = {}
+        for symbol in symbols:
+            data = bars.data.get(symbol, [])
+            prices = [b.close for b in data]
+            if len(prices) < 2:
+                result[symbol] = {
+                    "change_percent": 0,
+                    "change_dollars": 0,
+                    "current_price": prices[-1] if prices else 0
+                }
+                continue
+            first = prices[0]
+            last = prices[-1]
+            result[symbol] = {
+                "change_percent": round(((last-first) / first) * 100,2),
+                "change_dollars": round(last-first, 2),
+                "current_price": round(last, 2)
             }
-        prices = [bar.close for bar in bars.data[ticker]]
-        if len(prices) < 2:
-            return {
-                "change_percent": 0,
-                "change_dollars": 0,
-                "current_price": prices[0] if prices else 0
-            }
-        first_price = prices[0]
-        current_price = prices[-1]
-        change_percent = ((current_price - first_price) / first_price) * 100
-        change_dollars = current_price - first_price
-        return {
-            "change_percent": round(change_percent, 2),
-            "change_dollars": round(change_dollars, 2),
-            "current_price": round(current_price, 2)
-        }
-    except Exception as e:
-        print(f"CHANGE ERROR {ticker}: {e}")
-        return {
-            "change_percent": 0,
-            "change_dollars": 0,
-            "current_price": 0
-        }

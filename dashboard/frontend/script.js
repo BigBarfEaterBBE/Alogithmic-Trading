@@ -112,6 +112,12 @@ async function loadEquity(range = "5D") {
         filtered = filtered.filter(
             d => d.strategy === currentStrategy
         );
+        filtered.forEach(d => {
+            chartPoints.push({
+                time: d.time,
+                value: Number(d.equity)
+            });
+        });
         values = filtered.map(d => Number(d.equity));
         labels = filtered.map(d => {
             const date = new Date(d.time);
@@ -123,6 +129,7 @@ async function loadEquity(range = "5D") {
                 hour12: true
             });
         });
+        
     }
 
     console.log(filtered);
@@ -161,29 +168,45 @@ async function loadEquity(range = "5D") {
 
     const averageValue = values.reduce((sum,val) => sum + val, 0) / values.length;
     const averageLine = values.map(() => averageValue);
-    const tradeReplayPoints = [];
-    trades.forEach(trade => {
-        const tradeTime = new Date(trade.time);
-        let closestIndex = 0;
-        let closestDiff = Infinity;
+    // const normalizedStrategy = 
+    //     currentStrategy === "PB" ? "PULLBACK_TREND" : currentStrategy === "MR" ? "MEAN_REVERSION" : null;
+    // const tradeReplayPoints = [];
+    // trades.forEach(trade => {
+    //     if (
+    //         normalizedStrategy && trade.strategy !== normalizedStrategy
+    //     ) {
+    //         return;
+    //     }
+    //     const tradeTime = new Date(trade.time);
+    //     let closestPoint = null;
+    //     let closestDiff = Infinity;
 
-        chartPoints.forEach((point,index) => {
-            const diff = Math.abs(new Date(point.time) - tradeTime);
-            if (diff < closestDiff) {
-                closestDiff = diff;
-                closestIndex = index;
-            }
-        });
-        tradeReplayPoints.push({
-            x: labels[closestIndex].time,
-            y: chartPoints[closestIndex],
-            action: trade.action,
-            ticker: trade.ticker,
-            shares: Number(trade.shares || 0),
-            price: Number(trade.price || 0),
-            strategy: trade.strategy
-        });
-    });
+    //     chartPoints.forEach((point,index) => {
+    //         const diff = Math.abs(new Date(point.time) - tradeTime);
+    //         if (diff < closestDiff) {
+    //             closestDiff = diff;
+    //             closestPoint = point;
+    //         }
+    //     });
+    //     if (closestPoint) {
+    //         const label = new Date(closestPoint.time).toLocaleString("en-US", {
+    //             month: "short",
+    //             day: "numeric",
+    //             hour: "numeric",
+    //             minute: "2-digit",
+    //             hour12: true
+    //         });
+    //         tradeReplayPoints.push({
+    //             x: label,
+    //             y: closestPoint.value,
+    //             action: trade.action,
+    //             ticker: trade.ticker,
+    //             shares: Number(trade.shares || 0),
+    //             price: Number(trade.price || 0),
+    //             strategy: trade.strategy
+    //         });
+    //     }
+    // });
 
 
 
@@ -242,37 +265,37 @@ async function loadEquity(range = "5D") {
                 pointRadius: 0,
                 tension: 0.3,
                 fill: false
-            }] : []),
-            {
-                label: "Trade Replay",
-                data: tradeReplayPoints,
-                parsing: false,
-                showLine: false,
-                pointRadius: 6,
-                pointHoverRadius: 9,
-                pointBackgroundColor: (ctx) => {
-                    const action = String(ctx.raw?.action || "").toUpperCase();
-                    if (action.includes("BUY") || action.includes("ADD")) {
-                        return "#22c55e";
-                    }
-                    if (action.includes("SELL")) {
-                        return "#ef4444";
-                    }
-                    return "#38bdf8";
-                },
-                pointBorderColor: "#ffffff",
-                pointBorderWidth: 2,
-                pointStyle: (ctx) => {
-                    const action = String(ctx.raw?.action || "").toUpperCase();
-                    if (action.includes("BUY") || action.includes("ADD")) {
-                        return "triangle";
-                    }
-                    if (action.includes("SELL")) {
-                        return "rectRot";
-                    }
-                    return "circle";
-                }
-            }
+            }] : [])//,
+            // {
+            //     label: "Trade Replay",
+            //     data: tradeReplayPoints,
+            //     parsing: false,
+            //     showLine: false,
+            //     pointRadius: 6,
+            //     pointHoverRadius: 9,
+            //     pointBackgroundColor: (ctx) => {
+            //         const action = String(ctx.raw?.action || "").toUpperCase();
+            //         if (action.includes("BUY") || action.includes("ADD")) {
+            //             return "#22c55e";
+            //         }
+            //         if (action.includes("SELL")) {
+            //             return "#ef4444";
+            //         }
+            //         return "#38bdf8";
+            //     },
+            //     pointBorderColor: "#ffffff",
+            //     pointBorderWidth: 2,
+            //     pointStyle: (ctx) => {
+            //         const action = String(ctx.raw?.action || "").toUpperCase();
+            //         if (action.includes("BUY") || action.includes("ADD")) {
+            //             return "triangle";
+            //         }
+            //         if (action.includes("SELL")) {
+            //             return "rectRot";
+            //         }
+            //         return "circle";
+            //     }
+            // }
         ]
         },
         options: {
@@ -433,6 +456,7 @@ async function loadTrades() {
     `${recentTrades.length} Trades`;
 
     recentTrades.forEach(trade => {
+        
         const side = String(trade.side || trade.action || "").toUpperCase();
         const buyActions = ["BUY", "ADD"];
         const sellActions = ["SELL", "PARTIAL_SELL", "PARTIAL SELL"];
@@ -441,6 +465,9 @@ async function loadTrades() {
         const ticker = trade.ticker || trade.symbol || trade.asset || "N/A";
         const qty = Number(trade.qty || trade.shares || 0);
         const price = Number(trade.price || trade.fill_price || 0);
+        const notional = Number(trade.notional || 0);
+        const realizedPnL = trade.profit !== "" && trade.profit != null ? Number(trade.profit) : null;
+        const pnlPositive = realizedPnL !== null && realizedPnL >= 0;
         const strategy = trade.strategy;
         const timestamp = trade.time || trade.timestamp || "";
         const formattedTime = timestamp ? new Date(timestamp).toLocaleString("en-US", {
@@ -473,14 +500,20 @@ async function loadTrades() {
             </div>
             <div class="trade-right">
                 <div class="trade-total">
-                    $${(qty * price).toLocaleString(undefined, {
+                    $${notional.toLocaleString(undefined, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     })}
                 </div>
+                ${isSell ? `
+                    <div class="trade-pnl ${pnlPositive ? "positive" : "negative"}">
+                        ${pnlPositive ? "+" : ""}$${realizedPnL.toFixed(2)}
+                    </div>
+                ` : ""}
                 <div class="trade-time">
                     ${formattedTime}
                 </div>
+
             </div>
         `;
         container.appendChild(tradeCard);

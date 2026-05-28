@@ -735,3 +735,17 @@ h1 {
     color: rgba(255,255,255,0.45);
 }
 
+
+.trade-pnl { 
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.trade-pnl.positive {
+    color: #22c55e;
+}
+
+.trade-pnl.negative {
+    color: #ef4444;
+}
