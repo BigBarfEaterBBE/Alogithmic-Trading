@@ -749,3 +749,36 @@ h1 {
 .trade-pnl.negative {
     color: #ef4444;
 }
+
+.trades-controls {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.trade-filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.trade-filter,
+.trade-side-filter {
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    transition: 0.15s ease;
+    user-select: none;
+}
+
+.trade-filter:hover,
+.trade-side-filter:hover {
+    color: #38bdf8;
+}
+
+.trade-filter.active,
+.trade-side-filter.active {
+    color: #38bdf8;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(56,189,248,0.35);
+}

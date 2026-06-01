@@ -5,6 +5,8 @@ let currentStrategy = "TOTAL";
 let currentPositionsFilter = "TOTAL";
 let showRollingAverage = true;
 let showFlatAverage = false;
+let currentTradeStrategy = "TOTAL";
+let currentTradeSide = "ALL";
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     let data = await res.json();
@@ -447,6 +449,32 @@ async function loadTrades() {
     const res = await fetch("http://127.0.0.1:5000/api/trades");
     let data = await res.json();
 
+    if (currentTradeStrategy !== "TOTAL") {
+        const strategyMap = {
+            PB: "PULLBACK_TREND",
+            MR: "MEAN_REVERSION"
+        };
+        data = data.filter(
+            trade => trade.strategy === strategyMap[currentTradeStrategy]
+        );
+    }
+    if (currentTradeSide !== "ALL") {
+        data = data.filter(trade => {
+            const side = String(trade.side || trade.action || "").toUpperCase();
+            if (currentTradeSide === "BUY") {
+                return ["BUY", "ADD"].includes(side);
+            }
+            if (currentTradeSide === "SELL") {
+                return [
+                    "SELL",
+                    "PARTIAL_SELL",
+                    "PARTIAL SELL"
+                ].includes(side);
+            }
+            return true;
+        });
+    }
+
     const container = document.getElementById("tradesTable");
     container.innerHTML = "";
 
@@ -505,8 +533,8 @@ async function loadTrades() {
                         maximumFractionDigits: 2
                     })}
                 </div>
-                ${isSell ? `
-                    <div class="trade-pnl ${pnlPositive ? "positive" : "negative"}">
+                ${isSell && realizedPnL !== null ? `
+                    <div class="trade-pnl ${pnlPositive? "positive" : "negatuve"}">
                         ${pnlPositive ? "+" : ""}$${realizedPnL.toFixed(2)}
                     </div>
                 ` : ""}
@@ -738,6 +766,22 @@ document.getElementById("toggleFlat").addEventListener("click", (e) => {
     showFlatAverage = !showFlatAverage;
     document.getElementById("toggleFlat").classList.toggle("active", showFlatAverage);
     loadEquity(currentRange);
+});
+document.querySelectorAll(".trade-filter").forEach(el => {
+    el.addEventListener("click", () => {
+        document.querySelectorAll(".trade-filter").forEach(x => x.classList.remove("active"));
+        el.classList.add("active");
+        currentTradeStrategy = el.dataset.tradeStrategy;
+        loadTrades();
+    });
+});
+document.querySelectorAll(".trade-side-filter").forEach(el => {
+    el.addEventListener("click", () => {
+        document.querySelectorAll(".trade-side-filter").forEach(x => x.classList.remove("active"));
+        el.classList.add("active");
+        currentTradeSide = el.dataset.tradeSide;
+        loadTrades();
+    });
 });
 
 loadAll();

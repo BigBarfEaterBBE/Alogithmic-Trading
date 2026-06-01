@@ -76,7 +76,21 @@
                 <div class="card trades-card">
                     <div class="trades-header">
                         <h2>Recent Trades</h2>
-                        <div class="trades-stats">
+                        <div class="trades-controls">
+                            <div class="trade-filters">
+                                <span class="trade-filter active" data-trade-strategy="TOTAL">TOTAL</span>
+                                <span class="divider">/</span>
+                                <span class="trade-filter" data-trade-strategy="PB">PB</span>
+                                <span class="divider">/</span>
+                                <span class="trade-filter" data-trade-strategy="MR">MR</span>
+                            </div>
+                            <div class="trade-filters">
+                                <span class="trade-side-filter active" data-trade-side="ALL">ALL</span>
+                                <span class="divider">/</span>
+                                <span class="trade-side-filter" data-trade-side="BUY">BUY</span>
+                                <span class="divider">/</span>
+                                <span class="trade-side-filter" data-trade-side="SELL">SELL</span>
+                            </div>
                             <div class="trades-pill" id="tradeCount">
                                 0 Trades
                             </div>

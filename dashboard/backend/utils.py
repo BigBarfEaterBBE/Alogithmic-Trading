@@ -123,7 +123,20 @@ def combine_positions(pb_positions, mr_positions):
         ("PB", pb_positions),
         ("MR", mr_positions)
     ]
+    # Get unique tickers
+    tickers = list({
+        pos.symbol
+        for _, positions in all_positions
+        for pos in positions
+    })
 
+    # batch requests
+    all_price_data = get_price_change_data(tickers) or {}
+    all_charts = get_mini_charts(tickers) or {}
+    print("TICKERS:", tickers)
+    print("CHART KEYS:", all_charts.keys())
+
+    # form return answer
     for strategy, positions in all_positions:
         for pos in positions:
             ticker = pos.symbol
@@ -133,51 +146,69 @@ def combine_positions(pb_positions, mr_positions):
             unrealized_pl = float(pos.unrealized_pl)
             pnl_percent = (
                 unrealized_pl / (shares * avg_cost)
-                if shares * avg_cost > 0 else 0
+                if shares * avg_cost > 0
+                else 0
             )
-            price_data = get_price_change_data(ticker)
+
+            price_data = all_price_data.get(
+                ticker,
+                {
+                    "change_percent": 0,
+                    "change_dollars": 0,
+                    "current_price": 0
+                }
+            )
+            chart = all_charts.get(ticker, [])
 
             result.append({
                 "ticker": ticker,
                 "strategy": strategy,
-                "shares": round(shares,4),
+                "shares": round(shares, 2),
                 "avg_cost": round(avg_cost, 2),
-                "market_value": round(market_value, 2),
+                "market_value": round(market_value ,2),
                 "pnl": round(unrealized_pl, 2),
                 "pnl_percent": round(pnl_percent * 100,2),
                 "current_price": price_data["current_price"],
                 "day_change_percent": price_data["change_percent"],
                 "day_change_dollars": price_data["change_dollars"],
                 "logo": f"https://assets.parqet.com/logos/symbol/{ticker}?format=png",
-                "chart": get_mini_chart(ticker)
+                "chart": chart
             })
+            print(ticker, len(chart))
     return result
 
-def get_mini_chart(ticker):
+def get_mini_charts(tickers):
     try:
         end = datetime.utcnow()
-        start = end - timedelta(days = 2)
+        start = end - timedelta(days = 3)
         request = StockBarsRequest(
-            symbol_or_symbols=ticker,
+            symbol_or_symbols=tickers,
             timeframe = TimeFrame(1, TimeFrameUnit.Hour),
             start = start,
             end = end,
             feed="iex"
         )
         bars = data_client.get_stock_bars(request)
-        if ticker not in bars.data:
-            return []
-        prices = [bar.close for bar in bars.data[ticker]]
-        if not prices:
-            return []
-        base = prices[0]
-        normalized = [
-            round((p / base) * 100, 2) for p in prices
-        ]
-        return normalized
+        print("CHART DATA KEYS:")
+        print(list(bars.data.keys()))
+        charts = {}
+        for ticker in tickers:
+            if ticker not in bars.data:
+                charts[ticker] = []
+                continue
+            prices = [bar.close for bar in bars.data[ticker]]
+            if not prices:
+                charts[ticker] = []
+                continue
+            base = prices[0]
+            charts[ticker] = [
+                round((p/base) * 100,2)
+                for p in prices
+            ]
+        return charts
     except Exception as e:
         print(f"CHART ERROR {ticker}: {e}")
-        return []
+        return {}
 
 def get_price_change_data(symbols):
     try:
@@ -190,8 +221,15 @@ def get_price_change_data(symbols):
             end=end,
             feed="iex"
         )
+        print("REQUEST SYMBOLS:", symbols)
+        print("START:", start)
+        print("END:", end)
         bars = data_client.get_stock_bars(request)
+        print("PRICE DATA KEYS:")
+        print(list(bars.data.keys()))
         result = {}
+        if isinstance(symbols, str):
+            symbols = [symbols]
         for symbol in symbols:
             data = bars.data.get(symbol, [])
             prices = [b.close for b in data]
@@ -209,3 +247,7 @@ def get_price_change_data(symbols):
                 "change_dollars": round(last-first, 2),
                 "current_price": round(last, 2)
             }
+        return result
+    except Exception as e:
+        print(f"PRICE ERROR {symbol}: {e}")
+        return []
