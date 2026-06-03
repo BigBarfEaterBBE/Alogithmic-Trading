@@ -5,6 +5,23 @@
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
+        <div class="sidebar-container">
+            <div class="sidebar-hover-zone"></div>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="sidebar">
+                <h3>Navigation</h3>
+                <div class="sidebar-link active-page">
+                    Dashboard
+                </div>
+                <a href="analytics.html" class="sidebar-link">
+                    Analytics
+                </a>
+            </div>
+        </div>
         <h1 class="title">Trading Dashboard</h1>
         <div class="dashboard">
             <div class="ticker-wrapper card">
@@ -90,6 +107,16 @@
                                 <span class="trade-side-filter" data-trade-side="BUY">BUY</span>
                                 <span class="divider">/</span>
                                 <span class="trade-side-filter" data-trade-side="SELL">SELL</span>
+                            </div>
+                            <div class="trade-filter-dropdown">
+                                <div class="funnel-button">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                                <div class="trade-filter-menu" id="tickerFilterMenu">
+                                    
+                                </div>
                             </div>
                             <div class="trades-pill" id="tradeCount">
                                 0 Trades

@@ -7,6 +7,7 @@ let showRollingAverage = true;
 let showFlatAverage = false;
 let currentTradeStrategy = "TOTAL";
 let currentTradeSide = "ALL";
+let selectedTradeTickers = new Set();
 async function loadEquity(range = "5D") {
     const res = await fetch("http://127.0.0.1:5000/api/equity");
     let data = await res.json();
@@ -449,6 +450,8 @@ async function loadTrades() {
     const res = await fetch("http://127.0.0.1:5000/api/trades");
     let data = await res.json();
 
+    buildTickerFilterMenu(data);
+
     if (currentTradeStrategy !== "TOTAL") {
         const strategyMap = {
             PB: "PULLBACK_TREND",
@@ -472,6 +475,14 @@ async function loadTrades() {
                 ].includes(side);
             }
             return true;
+        });
+    }
+
+    if (selectedTradeTickers.size > 0) {
+        data = data.filter(trade => {
+            const ticker = 
+                trade.ticker || trade.symbol || trade.asset;
+                return selectedTradeTickers.has(ticker);
         });
     }
 
@@ -725,6 +736,38 @@ function animateTicker() {
     track.style.transform = `translateX(${position}px)`;
     requestAnimationFrame(animateTicker);
 }
+
+function buildTickerFilterMenu(trades) {
+    const menu = document.getElementById("tickerFilterMenu");
+    const tickers = [...new Set(
+        trades.map(t => t.ticker || t.symbol)
+    )].sort();
+    menu.innerHTML = "";
+    tickers.forEach(ticker => {
+        const row = document.createElement("label");
+        row.className = "ticker-filter-option";
+        row.innerHTML = `
+            <input
+                type="checkbox"
+                value = "${ticker}"
+                ${selectedTradeTickers.has(ticker) ? "checked" : ""}
+            >
+            ${ticker}
+        `;
+        const checkbox = row.querySelector("input");
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                selectedTradeTickers.add(ticker);
+            } else {
+                selectedTradeTickers.delete(ticker);
+            }
+            loadTrades();
+        });
+        menu.appendChild(row);
+
+    });
+}
+
 wrapper.style.cursor = "grab";
 animateTicker();
 
