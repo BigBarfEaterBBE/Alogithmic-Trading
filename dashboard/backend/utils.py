@@ -280,3 +280,74 @@ def get_analytics_data():
         "drawdown": drawdown.round(2).tolist(),
         "trade_returns": trade_returns
     }
+
+def get_allocation_data():
+    pb_positions = pb_client.get_all_positions()
+    mr_positions = mr_client.get_all_positions()
+
+    allocation = {}
+    strategy_totals = {
+        "PB": 0,
+        "MR": 0
+    }
+    for strategy, positions in [
+        ("PB", pb_positions),
+        ("MR", mr_positions)
+    ]:
+        for pos in positions:
+            ticker = pos.symbol
+            value = float(pos.market_value)
+            strategy_totals[strategy] += value
+            allocation[ticker] = (
+                allocation.get(ticker, 0) + value
+            )
+    total_portfolio = sum(allocation.values())
+    allocation_data = [
+        {
+            "ticker": ticker,
+            "value": round(value,2),
+            "percent": round(value / total_portfolio * 100, 2) if total_portfolio else 0
+        }
+        for ticker, value in allocation.items()
+    ]
+    allocation_data.sort(
+        key = lambda x: x["value"],
+        reverse = True
+    )
+    strategy_exposure = [
+        {
+            "strategy": strategy,
+            "value": round(value,2),
+            "percent": round(value / total_portfolio * 100, 2) if total_portfolio else 0
+        }
+        for strategy, value in strategy_totals.items()
+    ]
+
+    cash = (
+        float(pb_client.get_account().cash) + float(mr_client.get_account().cash)
+    )
+
+    long_value = sum(
+        value for value in allocation.values()
+        if value > 0
+    )
+
+    short_value = abs(sum(
+        value for value in allocation.values()
+        if value < 0
+    ))
+
+    gross = long_value + short_value + cash
+
+    exposure = {
+        "long": round(long_value / gross * 100,2) if gross else 0,
+        "short": round(short_value / gross * 100,2) if gross else 0,
+        "cash": round(cash / gross * 100,2) if gross else 0
+    }
+
+    return {
+        "allocation": allocation_data,
+        "strategy_exposure": strategy_exposure,
+        "total_value": round(total_portfolio, 2),
+        "exposure": exposure
+    }

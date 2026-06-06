@@ -1,5 +1,7 @@
 let drawdownChart = null;
 let histogramChart = null;
+let allocationChart = null;
+let exposureChart = null;
 
 async function loadAnalytics() {
     const res = await fetch(
@@ -12,6 +14,12 @@ async function loadAnalytics() {
     );
     buildHistogram(
         data.trade_returns
+    );
+    buildAllocationChart(
+        data.allocation
+    );
+    buildExposureChart(
+        data.exposure
     );
 }
 
@@ -35,7 +43,7 @@ function buildDrawdownChart(labels, values) {
     drawdownChart = new Chart(ctx, {
         type: "line",
         data: {
-            labels,
+            labels: formattedLabels,
             datasets: [{
                 label: "Drawdown",
                 data: values,
@@ -84,7 +92,7 @@ function buildDrawdownChart(labels, values) {
                     titleColor: "#fff",
                     bodyColor: "#fff",
                     callbacks: {
-                        label: (ctx) => `Drawdown: ${(ctx.raw*100).toFixed(2)}%`
+                        label: (ctx) => `Drawdown: ${ctx.raw.toFixed(2)}%`
                     }
                 }
             },
@@ -213,6 +221,92 @@ function buildHistogram(trades) {
                     ticks: {
                         color: "rgba(255,255,255,0.6)"
                     }
+                }
+            }
+        }
+    });
+}
+
+function buildAllocationChart(positions) {
+    const ctx = document.getElementById("allocationChart");
+    if (allocationChart) {
+        allocationChart.destroy();
+    }
+    allocationChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+            labels: positions.map(
+                p => p.ticker
+            ),
+            datasets: [{
+                data:positions.map(
+                    p => p.value
+                ),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "70%",
+            plugins: {
+                legend: {
+                    position: "right",
+                    labels: {
+                        color: "white"
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                            const pct = (ctx.raw / total) * 100;
+                            return `${ctx.label}: ${pct.toFixed(1)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function buildExposureChart(exposure) {
+    document.getElementById("longExposure").textContent = `${exposure.long.toFixed(1)}%`;
+    document.getElementById("shortExposure").textContent = `${exposure.short.toFixed(1)}%`;
+    document.getElementById("cashExposure").textContent = `${exposure.cash.toFixed(1)}%`;
+    const ctx = document.getElementById("exposureChart");
+    if (exposureChart) {
+        exposureChart.destroy();
+    }
+    exposureChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: [
+                "Long",
+                "Short",
+                "Cash"
+            ],
+            datasets: [{
+                data: [
+                    exposure.long,
+                    exposure.short,
+                    exposure.cash
+                ],
+                borderRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
                 }
             }
         }

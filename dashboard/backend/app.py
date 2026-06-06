@@ -32,7 +32,8 @@ from utils import (
     get_equity_data,
     get_trades_data,
     combine_positions,
-    get_analytics_data
+    get_analytics_data,
+    get_allocation_data
 )
 
 app = Flask(__name__, static_folder="../frontend")
@@ -73,7 +74,11 @@ def static_files(path):
 
 @app.route("/api/analytics")
 def analytics():
-    return jsonify(get_analytics_data())
+    analytics = get_analytics_data()
+    analytics.update(
+        get_allocation_data()
+    )
+    return jsonify(analytics)
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -623,7 +623,7 @@ h1 {
     border-radius: 999px;
 }
 
-.trades-list::webkit-scrollbar-thumb {
+.trades-list::-webkit-scrollbar-thumb {
     background: linear-gradient(
         180deg,
         rgba(56,189,248,0.65),
@@ -941,7 +941,7 @@ h1 {
     cursor: pointer;
 }
 
-.ticker-filter-roption:hover {
+.ticker-filter-option:hover {
     opacity: 0.8;
 }
 
@@ -962,4 +962,30 @@ h1 {
     position: relative;
     height: 350px;
     width: 100%;
+}
+
+.exposure-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.exposure-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+}
+
+.exposure-box span {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9rem;
+}
+
+.exposure-box h3 {
+    margin-top: 8px;
+    margin-bottom: 0;
+    font-size: 1.8rem;
 }
