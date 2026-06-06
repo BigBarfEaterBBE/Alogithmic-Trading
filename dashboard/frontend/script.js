@@ -588,7 +588,8 @@ async function loadTickerBar() {
     //duplicate cards 4 seamless scrolling
     const loopedStocks = [...stocks, ...stocks];
     loopedStocks.forEach(stock => {
-        const positive = stock.pnl_percent >= 0;
+        const chartData = stock.chart || [];
+        const positive = chartData.length > 1 ? chartData[chartData.length-1] >= chartData[0] : stock.pnl_percent >= 0;
         const card = document.createElement("div");
         card.className = "stock-card";
         card.innerHTML = `
@@ -624,7 +625,7 @@ async function loadTickerBar() {
             data: {
                 labels: (stock.chart || []).map((_, i) => i),
                 datasets: [{
-                    data: stock.chart || [],
+                    data: chartData,
                     borderColor: positive ? "#22c55e" : "#ef4444",
                     borderWidth: 2,
                     pointRadius: 0,
@@ -770,6 +771,19 @@ function buildTickerFilterMenu(trades) {
 
 wrapper.style.cursor = "grab";
 animateTicker();
+
+const filterButton = document.querySelector(".funnel-button");
+const filterMenu = document.getElementById("tickerFilterMenu");
+filterButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    filterMenu.classList.toggle("open");
+});
+
+document.addEventListener("click", (e) => {
+    if (!filterMenu.contains(e.target)) {
+        filterMenu.classList.remove("open");
+    }
+})
 
 document.querySelectorAll(".chart-option").forEach(el => {
     el.addEventListener("click", () => {

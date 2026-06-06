@@ -16,6 +16,17 @@ async function loadAnalytics() {
 }
 
 function buildDrawdownChart(labels, values) {
+    const formattedLabels = labels.map(label => {
+        const date = new Date(label);
+        return date.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true
+        });
+    });
+
     const ctx = document.getElementById("drawdownChart");
     if (drawdownChart) {
         drawdownChart.destroy();
@@ -191,8 +202,8 @@ function buildHistogram(trades) {
                     },
                     ticks: {
                         color: "rgba(255,255,255,0.6)",
-                        maxRotation: 45,
-                        minRotation: 45
+                        maxTicksLimit: 8,
+                        maxRotation: 0
                     }
                 },
                 y: {
