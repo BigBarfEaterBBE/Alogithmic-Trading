@@ -28,6 +28,13 @@ mr_client = TradingClient(
     paper=True
 )
 
+from utils import (
+    get_equity_data,
+    get_trades_data,
+    combine_positions,
+    get_analytics_data
+)
+
 app = Flask(__name__, static_folder="../frontend")
 
 @app.route("/api/equity")
@@ -64,5 +71,10 @@ def home():
 def static_files(path):
     return send_from_directory(app.static_folder, path)
 
+@app.route("/api/analytics")
+def analytics():
+    return jsonify(get_analytics_data())
+
 if __name__ == "__main__":
     app.run(debug=True)
+

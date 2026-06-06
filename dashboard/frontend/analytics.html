@@ -23,16 +23,21 @@
             </div>
         </div>
         <h1 class="title">Trading Analytics</h1>
-        <div class="dashboard">
-            <div class="card">
-                <h2>Strategy Performance</h2>
-                <canvas id="winRateChart"></canvas>
+        <div class="dashboard analytics-grid">
+            <div class="card drawdown-card">
+                <h2>Drawdown Curve</h2>
+                <div class="chart-container">
+                    <canvas id="drawdownChart"></canvas>
+                </div>
             </div>
-            <div class="card">
-                <h2>Trade Distribution</h2>
-                <canvas id="distributionChart"></canvas>
+            <div class="card histogram-card">
+                <h2>Trade Return Histogram</h2>
+                <div class="chart-container">
+                    <canvas id="histogramChart"></canvas>
+                </div>
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="analytics.js"></script>
     </body>
 </html>

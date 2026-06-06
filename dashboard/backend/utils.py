@@ -133,8 +133,6 @@ def combine_positions(pb_positions, mr_positions):
     # batch requests
     all_price_data = get_price_change_data(tickers) or {}
     all_charts = get_mini_charts(tickers) or {}
-    print("TICKERS:", tickers)
-    print("CHART KEYS:", all_charts.keys())
 
     # form return answer
     for strategy, positions in all_positions:
@@ -174,7 +172,6 @@ def combine_positions(pb_positions, mr_positions):
                 "logo": f"https://assets.parqet.com/logos/symbol/{ticker}?format=png",
                 "chart": chart
             })
-            print(ticker, len(chart))
     return result
 
 def get_mini_charts(tickers):
@@ -189,8 +186,6 @@ def get_mini_charts(tickers):
             feed="iex"
         )
         bars = data_client.get_stock_bars(request)
-        print("CHART DATA KEYS:")
-        print(list(bars.data.keys()))
         charts = {}
         for ticker in tickers:
             if ticker not in bars.data:
@@ -221,12 +216,7 @@ def get_price_change_data(symbols):
             end=end,
             feed="iex"
         )
-        print("REQUEST SYMBOLS:", symbols)
-        print("START:", start)
-        print("END:", end)
         bars = data_client.get_stock_bars(request)
-        print("PRICE DATA KEYS:")
-        print(list(bars.data.keys()))
         result = {}
         if isinstance(symbols, str):
             symbols = [symbols]
@@ -251,3 +241,42 @@ def get_price_change_data(symbols):
     except Exception as e:
         print(f"PRICE ERROR {symbol}: {e}")
         return []
+
+def get_analytics_data():
+    equity_df = pd.read_csv(EQUITY_FILE)
+
+    equity_df["time"] = pd.to_datetime(equity_df["time"])
+    equity_df = equity_df.sort_values("time")
+
+    pivot = equity_df.pivot_table(
+        index='time',
+        columns='strategy',
+        values='equity',
+        aggfunc='last'
+    )
+
+    pivot = pivot.ffill().fillna(0)
+
+    if "MR" in pivot.columns and "PB" in pivot.columns:
+        total_equity = pivot['MR'] + pivot['PB']
+    else:
+        total_equity = pivot.sum(axis=1)
+    running_peak = total_equity.cummax()
+    drawdown = (
+        (total_equity - running_peak)
+        / running_peak * 100
+    )
+    trades = get_trades_data()
+    trade_returns = [
+        float(t['realized_pnl'])
+        for t in trades
+        if t.get("realized_pnl") is not None
+    ]
+    return {
+        "equity_labels": [
+            t.strftime("%Y-%m-%d %H:%M")
+            for t in total_equity.index
+        ],
+        "drawdown": drawdown.round(2).tolist(),
+        "trade_returns": trade_returns
+    }
