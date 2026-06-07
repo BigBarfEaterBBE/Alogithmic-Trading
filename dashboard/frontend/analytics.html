@@ -42,25 +42,41 @@
                     <canvas id="allocationChart"></canvas>
                 </div>
             </div>
-            <div class="card exposure-card">
-                <h2>Exposure</h2>
-                <div class="exposure-grid">
-                    <div class="exposure-box">
-                        <span>Long</span>
-                        <h3 id="longExposure">0%</h3>
+            <div class="card duration-card">
+                <h2>Trade Duration Analysis</h2>
+                <div class="duration-grid">
+                    <div class="duration-box">
+                        <span>Average</span>
+                        <h3 id="avgDuration">0h</h3>
                     </div>
-                    <div class="exposure-box">
-                        <span>Short</span>
-                        <h3 id="shortExposure">0%</h3>
+                    <div class="duration-box">
+                        <span>Shortest</span>
+                        <h3 id="minDuration">0h</h3>
                     </div>
-                    <div class="exposure-box">
-                        <span>Cash</span>
-                        <h3 id="cashExposure">0%</h3>
+                    <div class="duration-box">
+                        <span>Longest</span>
+                        <h3 id="maxDuration">0h</h3>
                     </div>
                 </div>
                 <div class="chart-container">
-                    <canvas id="exposureChart"></canvas>
+                    <canvas id="durationChart"></canvas>
                 </div>
+            </div>
+            <div class="card strategy-comparison-card">
+                <h2>Strategy Comparison</h2>
+                <table class="positions-table">
+                    <thead>
+                        <tr>
+                            <th>Strategy</th>
+                            <th>Return</th>
+                            <th>Win Rate</th>
+                            <th>Trades</th>
+                            <th>Avg Trade</th>
+                            <th>Max DD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="strategyComparisonBody"></tbody>
+                </table>
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -1,13 +1,18 @@
 let drawdownChart = null;
 let histogramChart = null;
 let allocationChart = null;
-let exposureChart = null;
+let durationChart = null;
 
 async function loadAnalytics() {
     const res = await fetch(
         "http://127.0.0.1:5000/api/analytics"
     );
     const data = await res.json();
+    if (data.total_return >= 0) {
+        document.body.classList.add("profit");
+    } else {
+        document.body.classList.add("loss");
+    }
     buildDrawdownChart(
         data.equity_labels,
         data.drawdown
@@ -18,8 +23,11 @@ async function loadAnalytics() {
     buildAllocationChart(
         data.allocation
     );
-    buildExposureChart(
-        data.exposure
+    buildTradeDurationChart(
+        data.trade_durations
+    );
+    buildStrategyComparison(
+        data.strategy_stats
     );
 }
 
@@ -270,29 +278,33 @@ function buildAllocationChart(positions) {
     });
 }
 
-function buildExposureChart(exposure) {
-    document.getElementById("longExposure").textContent = `${exposure.long.toFixed(1)}%`;
-    document.getElementById("shortExposure").textContent = `${exposure.short.toFixed(1)}%`;
-    document.getElementById("cashExposure").textContent = `${exposure.cash.toFixed(1)}%`;
-    const ctx = document.getElementById("exposureChart");
-    if (exposureChart) {
-        exposureChart.destroy();
+function buildTradeDurationChart(durations) {
+    if (!durations || durations.length === 0) {
+        return;
     }
-    exposureChart = new Chart(ctx, {
+    const avg = durations.reduce((a,b) => a + b, 0) / durations.length;
+    const min = Math.min(...durations);
+    const max = Math.max(...durations);
+    document.getElementById("avgDuration").textContent = `${avg.toFixed(1)}h`;
+    document.getElementById("minDuration").textContent =  `${min.toFixed(1)}h`;
+    document.getElementById("maxDuration").textContent = `${max.toFixed(1)}h`;
+    const ctx = document.getElementById("durationChart");
+    if (durationChart) {
+        durationChart.destroy();
+    }
+    durationChart = new Chart(ctx, {
         type: "bar",
         data: {
-            labels: [
-                "Long",
-                "Short",
-                "Cash"
-            ],
+            labels: durations.map(
+                (_, i) => `Trade ${i + 1}`
+            ),
             datasets: [{
-                data: [
-                    exposure.long,
-                    exposure.short,
-                    exposure.cash
-                ],
-                borderRadius: 10
+                label: "Duration (hours)",
+                data: durations,
+                borderRadius: 8,
+                backgroundColor: "rgba(59,130,246,0.7)",
+                borderColor: "rgba(59,130,246,1)",
+                borderWidth:1
             }]
         },
         options: {
@@ -301,15 +313,45 @@ function buildExposureChart(exposure) {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.raw.toFixed(1)} hours`
+                    }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    max: 100
+                    title: {
+                        display: true,
+                        text: "Hours"
+                    }
                 }
             }
         }
+    });
+}
+
+function buildStrategyComparison(stats) {
+    const body = document.getElementById(
+        "strategyComparisonBody"
+    );
+    body.innerHTML = "";
+    stats.forEach(strategy => {
+        const row = document.createElement("tr");
+        const returnClass = strategy.return_pct >= 0 ? "positive" : "negative";
+        row.innerHTML = `
+            <td>${strategy.name}</td>
+            <td class="${returnClass}">
+                ${strategy.return_pct.toFixed(2)}
+            </td>
+            <td>${strategy.win_rate.toFixed(1)}%</td>
+            <td>${strategy.trades}</td>
+            <td>$${strategy.avg_trade.toFixed(2)}</td>
+            <td>${strategy.max_drawdown.toFixed(2)}%</td>
+        `;
+        body.appendChild(row);
     });
 }
 

@@ -50,7 +50,7 @@ def get_equity_data():
     # keep only necessary columns (for now)
     df = df[["time", "strategy", "equity"]]
     #remove duplicates
-    df["time"] = pd.to_datetime(df["time"])
+    df["time"] = pd.to_datetime(df["time"],format="mixed",utc=True)
 
     # round timestamps to nearest minute
     df["time"] = df["time"].dt.floor("min")
@@ -71,13 +71,13 @@ def get_trades_data():
     # track positiions per strategy + ticker
     positions = {}
     realized_pnls = []
-    df["time"] = pd.to_datetime(df["time"])
+    df["time"] = pd.to_datetime(df["time"],format="mixed",utc=True)
     df = df.sort_values("time")
     for _, row in df.iterrows():
         ticker = row.get("ticker") or row.get("symbol")
         strategy = row.get("strategy", "")
         side = str(row.get("side") or row.get("action") or "").upper()
-        qty = float(row["qty"] or 0)
+        qty = float((row["qty"] or 0))
         price = float(row['price'] or 0)
 
         key = (strategy, ticker)
@@ -245,7 +245,7 @@ def get_price_change_data(symbols):
 def get_analytics_data():
     equity_df = pd.read_csv(EQUITY_FILE)
 
-    equity_df["time"] = pd.to_datetime(equity_df["time"])
+    equity_df["time"] = pd.to_datetime(equity_df["time"],format="mixed",utc=True)
     equity_df = equity_df.sort_values("time")
 
     pivot = equity_df.pivot_table(
@@ -267,18 +267,111 @@ def get_analytics_data():
         / running_peak * 100
     )
     trades = get_trades_data()
+    trade_durations = []
+    lots = {}
+    for trade in trades:
+        ticker = trade.get("ticker") or trade.get("symbol")
+        strategy = trade.get("strategy","")
+        side = str(
+            trade.get("side")
+            or trade.get("action")
+            or ""
+        ).upper()
+        qty = float(trade.get("qty") or trade.get("shares") or 0)
+        trade_time = pd.to_datetime(trade["time"], format="mixed",utc=True)
+        key = (strategy, ticker)
+        if side in ["BUY", "ADD"]:
+            lots.setdefault(key, []).append({
+                "qty": qty,
+                "time": trade_time
+            })
+        elif side in [
+            "SELL",
+            "PARTIAL_SELL",
+            "PARTIAL SELL"
+        ]:
+            remaining = qty
+            while (
+                remaining > 0
+                and key in lots
+                and lots[key]
+            ):
+                lot = lots[key][0]
+                matched_qty = min(remaining, lot["qty"])
+                duration_hours = (trade_time - lot["time"]).total_seconds() / 3600
+                trade_durations.append(duration_hours)
+                lot["qty"] -= matched_qty
+                remaining -= matched_qty
+                if lot["qty"] <= 0:
+                    lots[key].pop(0)
     trade_returns = [
         float(t['realized_pnl'])
         for t in trades
         if t.get("realized_pnl") is not None
     ]
+    strategy_map = {
+        "PB": "PULLBACK_TREND",
+        "MR": "MEAN_REVERSION"
+    }
+    strategy_stats = []
+    for strategy in pivot.columns:
+        trade_strategy = strategy_map.get(strategy, strategy)
+        strategy_trades = [
+            t for t in trades
+            if t.get("strategy") == trade_strategy
+            and t.get("realized_pnl") is not None
+        ]
+        pnls = [
+            float(t["realized_pnl"])
+            for t in strategy_trades
+        ]
+        trade_count = len(pnls)
+        if trade_count > 0:
+            wins = len([
+                p for p in pnls
+                if p > 0
+            ])
+            win_rate = (
+                wins / trade_count * 100
+            )
+            avg_trade = (sum(pnls) / trade_count)
+        else:
+            win_rate = 0
+            avg_trade = 0
+        strategy_equity = pivot.get(strategy)
+        if strategy_equity is not None:
+            peak = strategy_equity.cummax()
+            strategy_dd = (
+                (strategy_equity - peak) / peak*100
+            )
+            max_dd = abs(strategy_dd.min())
+            return_pct = (
+                (
+                    strategy_equity.iloc[-1] - strategy_equity.iloc[0]
+                )/ strategy_equity.iloc[0] * 100
+                if strategy_equity.iloc[0] != 0
+                else 0
+            )
+        else:
+            max_dd = 0
+            return_pct = 0
+        strategy_stats.append({
+            "name": strategy,
+            "return_pct": round(return_pct, 2),
+            "win_rate": round(win_rate,1),
+            "trades": trade_count,
+            "avg_trade": round(avg_trade,2),
+            "max_drawdown": round(max_dd,2)
+        })
     return {
         "equity_labels": [
             t.strftime("%Y-%m-%d %H:%M")
             for t in total_equity.index
         ],
         "drawdown": drawdown.round(2).tolist(),
-        "trade_returns": trade_returns
+        "trade_returns": trade_returns,
+        "trade_durations": trade_durations,
+        "strategy_stats": strategy_stats
     }
 
 def get_allocation_data():
