@@ -299,9 +299,14 @@ def get_analytics_data():
                 lot = lots[key][0]
                 matched_qty = min(remaining, lot["qty"])
                 duration_hours = (trade_time - lot["time"]).total_seconds() / 3600
-                trade_durations.append(duration_hours)
+                trade_durations.append({
+                    "duration": duration_hours,
+                    "qty": matched_qty
+                })
+
                 lot["qty"] -= matched_qty
                 remaining -= matched_qty
+                
                 if lot["qty"] <= 0:
                     lots[key].pop(0)
     trade_returns = [
@@ -363,6 +368,11 @@ def get_analytics_data():
             "avg_trade": round(avg_trade,2),
             "max_drawdown": round(max_dd,2)
         })
+        weighted_duration = 0
+        if trade_durations:
+            total_qty = sum(d["qty"] for d in trade_durations)
+            weighted_duration = (sum(d["duration"] * d["qty"] for d in trade_durations) / total_qty)
+            duration_chart_data = [round(d["duration"], 2) for d in trade_durations]
     return {
         "equity_labels": [
             t.strftime("%Y-%m-%d %H:%M")
@@ -370,7 +380,8 @@ def get_analytics_data():
         ],
         "drawdown": drawdown.round(2).tolist(),
         "trade_returns": trade_returns,
-        "trade_durations": trade_durations,
+        "trade_durations": duration_chart_data,
+        "avg_trade_duration": round(weighted_duration,2),
         "strategy_stats": strategy_stats
     }
 

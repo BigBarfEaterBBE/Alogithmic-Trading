@@ -24,7 +24,8 @@ async function loadAnalytics() {
         data.allocation
     );
     buildTradeDurationChart(
-        data.trade_durations
+        data.trade_durations,
+        data.avg_trade_duration
     );
     buildStrategyComparison(
         data.strategy_stats
@@ -278,14 +279,14 @@ function buildAllocationChart(positions) {
     });
 }
 
-function buildTradeDurationChart(durations) {
+function buildTradeDurationChart(durations, avgDuration) {
     if (!durations || durations.length === 0) {
         return;
     }
     const avg = durations.reduce((a,b) => a + b, 0) / durations.length;
     const min = Math.min(...durations);
     const max = Math.max(...durations);
-    document.getElementById("avgDuration").textContent = `${avg.toFixed(1)}h`;
+    document.getElementById("avgDuration").textContent = `${avgDuration.toFixed(1)}h`;
     document.getElementById("minDuration").textContent =  `${min.toFixed(1)}h`;
     document.getElementById("maxDuration").textContent = `${max.toFixed(1)}h`;
     const ctx = document.getElementById("durationChart");
