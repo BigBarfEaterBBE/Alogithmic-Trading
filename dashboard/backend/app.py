@@ -74,11 +74,7 @@ def static_files(path):
 
 @app.route("/api/analytics")
 def analytics():
-    analytics = get_analytics_data()
-    analytics.update(
-        get_allocation_data()
-    )
-    return jsonify(analytics)
+    return jsonify(get_analytics_data())
 
 if __name__ == "__main__":
     app.run(debug=True)

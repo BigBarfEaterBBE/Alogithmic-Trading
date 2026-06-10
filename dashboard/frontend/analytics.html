@@ -25,25 +25,61 @@
         <h1 class="title">Trading Analytics</h1>
         <div class="dashboard analytics-grid">
             <div class="card drawdown-card">
-                <h2>Drawdown Curve</h2>
+                <div class="positions-top">
+                    <h2>Drawdown Curve</h2>
+                    <div class="positions-filter active">
+                        <span class="analytics-filter active" data-card="drawdown" data-strategy="ALL">ALL</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="drawdown" data-strategy="PB">PB</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="drawdown" data-strategy="MR">MR</span>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="drawdownChart"></canvas>
                 </div>
             </div>
             <div class="card histogram-card">
-                <h2>Trade Return Histogram</h2>
+                <div class="positions-top">
+                    <h2>Trade Return Histogram</h2>
+                    <div class="positions-filter active">
+                        <span class="analytics-filter active" data-card="histogram" data-strategy="ALL">ALL</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="histogram" data-strategy="PB">PB</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="histogram" data-strategy="MR">MR</span>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="histogramChart"></canvas>
                 </div>
             </div>
             <div class="card allocation-card">
-                <h2>Portfolio Allocation</h2>
+                <div class="positions-top">
+                    <h2>Portfolio Allocation</h2>
+                    <div class="positions-filter active">
+                        <span class="analytics-filter active" data-card="allocation" data-strategy="ALL">ALL</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="allocation" data-strategy="PB">PB</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="allocation" data-strategy="MR">MR</span>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="allocationChart"></canvas>
                 </div>
             </div>
             <div class="card duration-card">
-                <h2>Trade Duration Analysis</h2>
+                <div class="positions-top">
+                    <h2>Trade Duration Analysis</h2>
+                    <div class="positions-filter active">
+                        <span class="analytics-filter active" data-card="duration" data-strategy="ALL">ALL</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="duration" data-strategy="PB">PB</span>
+                        <span class="divider">/</span>
+                        <span class="analytics-filter" data-card="duration" data-strategy="MR">MR</span>
+                    </div>
+                </div>
                 <div class="duration-grid">
                     <div class="duration-box">
                         <span>Average</span>

@@ -993,3 +993,20 @@ h1 {
 .strategy-comparison-card {
     grid-column: 1 / -1;
 }
+
+.analytics-filter {
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.analytics-filter:hover {
+    color: #38bdf8;
+}
+
+.analytics-filter.active {
+    color: #38bdf8;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(56,189,248,0.35);
+}

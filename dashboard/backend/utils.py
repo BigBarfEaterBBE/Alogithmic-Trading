@@ -243,6 +243,15 @@ def get_price_change_data(symbols):
         return []
 
 def get_analytics_data():
+    print("USING UPDATED ANALYTICS FUNCTION")
+    strategy_map = {
+        "PB": "PULLBACK_TREND",
+        "MR": "MEAN_REVERSION"
+    }
+    reverse_strategy_map = {
+        "PULLBACK_TREND": "PB",
+        "MEAN_REVERSION": "MR"
+    }
     equity_df = pd.read_csv(EQUITY_FILE)
 
     equity_df["time"] = pd.to_datetime(equity_df["time"],format="mixed",utc=True)
@@ -256,18 +265,43 @@ def get_analytics_data():
     )
 
     pivot = pivot.ffill().fillna(0)
-
+    drawdown_data = {}
     if "MR" in pivot.columns and "PB" in pivot.columns:
-        total_equity = pivot['MR'] + pivot['PB']
+        total_equity = pivot["MR"] + pivot["PB"]
     else:
         total_equity = pivot.sum(axis=1)
     running_peak = total_equity.cummax()
-    drawdown = (
-        (total_equity - running_peak)
-        / running_peak * 100
-    )
+    drawdown = ((total_equity - running_peak) / running_peak * 100).fillna(0)
+    drawdown_data["ALL"] = {
+        "labels": [
+            t.strftime("%Y-%m-%d %H:%M")
+            for t in total_equity.index
+        ],
+        "values": drawdown.round(2).tolist()
+    }
+    for strategy in ["PB", "MR"]:
+        if strategy not in pivot.columns:
+            drawdown_data[strategy] = {
+                "labels": [],
+                "values": []
+            }
+            continue
+        equity = pivot[strategy]
+        peak = equity.cummax()
+        dd = ((equity-peak) / peak * 100).fillna(0)
+        drawdown_data[strategy] = {
+            "labels": [
+                t.strftime("%Y-%m-%d %H:%M")
+                for t in equity.index
+            ],
+            "values": dd.round(2).tolist()
+        }
     trades = get_trades_data()
-    trade_durations = []
+    trade_durations = {
+        "ALL": [],
+        "PB": [],
+        "MR": []
+    }
     lots = {}
     for trade in trades:
         ticker = trade.get("ticker") or trade.get("symbol")
@@ -299,27 +333,49 @@ def get_analytics_data():
                 lot = lots[key][0]
                 matched_qty = min(remaining, lot["qty"])
                 duration_hours = (trade_time - lot["time"]).total_seconds() / 3600
-                trade_durations.append({
+                trade_durations["ALL"].append({
                     "duration": duration_hours,
                     "qty": matched_qty
                 })
+                short_strategy = reverse_strategy_map.get(
+                    strategy, strategy
+                )
+                if short_strategy in trade_durations:
+                    trade_durations[short_strategy].append({
+                        "duration": duration_hours,
+                        "qty": matched_qty
+                    })
 
                 lot["qty"] -= matched_qty
                 remaining -= matched_qty
                 
                 if lot["qty"] <= 0:
                     lots[key].pop(0)
-    trade_returns = [
-        float(t['realized_pnl'])
-        for t in trades
-        if t.get("realized_pnl") is not None
-    ]
+    trade_returns = {
+        "ALL": [],
+        "PB": [],
+        "MR": []
+    }
+    for trade in trades:
+        pnl = trade.get("realized_pnl")
+        if pnl is None:
+            continue
+        pnl = float(pnl)
+        trade_returns["ALL"].append(pnl)
+        short_strategy = reverse_strategy_map.get(
+            trade.get("strategy"),
+            trade.get("strategy")
+        )
+        if short_strategy in trade_returns:
+            trade_returns[short_strategy].append(pnl)
     strategy_map = {
         "PB": "PULLBACK_TREND",
         "MR": "MEAN_REVERSION"
     }
     strategy_stats = []
     for strategy in pivot.columns:
+        print("PIVOT COLUMNS", pivot.columns.tolist())
+        print("TRADE STRATEGIES:", set(t.get("strategy") for t in trades))
         trade_strategy = strategy_map.get(strategy, strategy)
         strategy_trades = [
             t for t in trades
@@ -368,20 +424,48 @@ def get_analytics_data():
             "avg_trade": round(avg_trade,2),
             "max_drawdown": round(max_dd,2)
         })
-        weighted_duration = 0
-        if trade_durations:
-            total_qty = sum(d["qty"] for d in trade_durations)
-            weighted_duration = (sum(d["duration"] * d["qty"] for d in trade_durations) / total_qty)
-            duration_chart_data = [round(d["duration"], 2) for d in trade_durations]
-    return {
-        "equity_labels": [
-            t.strftime("%Y-%m-%d %H:%M")
-            for t in total_equity.index
+        
+    duration_response = {}
+    avg_duration_response = {}
+    for key, values in trade_durations.items():
+        duration_response[key] = [
+            round(d["duration"],2)
+            for d in values
+        ]
+        if values:
+            total_qty = sum(d["qty"] for d in values)
+            avg_duration_response[key] = round(
+                sum(d["duration"] * d["qty"] for d in values) / total_qty,2
+            )
+        else:
+            avg_duration_response[key] = 0
+    allocation_data = get_allocation_data()
+    pb_symbols = {
+        pos.symbol
+        for pos in pb_client.get_all_positions()
+    }
+    mr_symbols = {
+        pos.symbol
+        for pos in mr_client.get_all_positions()
+    }
+
+    allocation_response = {
+        "ALL": allocation_data["allocation"],
+        "PB": [
+            p for p in allocation_data["allocation"]
+            if p["ticker"] in pb_symbols
         ],
-        "drawdown": drawdown.round(2).tolist(),
+        "MR": [
+            p for p in allocation_data["allocation"]
+            if p["ticker"] in mr_symbols
+        ]
+    }
+    return {
+        "drawdown": drawdown_data,
         "trade_returns": trade_returns,
-        "trade_durations": duration_chart_data,
-        "avg_trade_duration": round(weighted_duration,2),
+        "allocation": allocation_response,
+        "trade_durations": duration_response,
+        "avg_trade_duration": avg_duration_response,
         "strategy_stats": strategy_stats
     }
 

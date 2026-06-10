@@ -2,34 +2,57 @@ let drawdownChart = null;
 let histogramChart = null;
 let allocationChart = null;
 let durationChart = null;
+let analyticsData = null;
+const analyticsFilters = {
+    drawdown: "ALL",
+    histogram: "ALL",
+    allocation: "ALL",
+    duration: "ALL"
+};
 
 async function loadAnalytics() {
     const res = await fetch(
         "http://127.0.0.1:5000/api/analytics"
     );
-    const data = await res.json();
-    if (data.total_return >= 0) {
-        document.body.classList.add("profit");
-    } else {
-        document.body.classList.add("loss");
-    }
+    analyticsData = await res.json();
+    setupAnalyticsFilters();
+    renderAnalytics();
+}
+
+function setupAnalyticsFilters() {
+    document.querySelectorAll(".analytics-filter").forEach(filter => {
+        filter.addEventListener("click", () => {
+            const card = filter.dataset.card;
+            const strategy = filter.dataset.strategy;
+            analyticsFilters[card] = strategy;
+            document.querySelectorAll(`.analytics-filter[data-card="${card}"]`).forEach(el => el.classList.remove("active"));
+            filter.classList.add("active");
+            renderAnalytics();
+        });
+    });
+}
+
+function renderAnalytics() {
     buildDrawdownChart(
-        data.equity_labels,
-        data.drawdown
+        analyticsData.drawdown[analyticsFilters.drawdown].labels,
+        analyticsData.drawdown[analyticsFilters.drawdown].values
     );
     buildHistogram(
-        data.trade_returns
+        analyticsData.trade_returns[analyticsFilters.histogram]
     );
+    console.log(
+                analyticsFilters.allocation,
+                analyticsData.allocation
+            );
     buildAllocationChart(
-        data.allocation
+        analyticsData.allocation[analyticsFilters.allocation]
     );
     buildTradeDurationChart(
-        data.trade_durations,
-        data.avg_trade_duration
+        analyticsData.trade_durations[analyticsFilters.duration],
+        analyticsData.avg_trade_duration[analyticsFilters.duration]
     );
-    buildStrategyComparison(
-        data.strategy_stats
-    );
+    buildStrategyComparison(analyticsData.strategy_stats);
+    
 }
 
 function buildDrawdownChart(labels, values) {
@@ -236,14 +259,26 @@ function buildHistogram(trades) {
     });
 }
 
-function buildAllocationChart(positions) {
+function buildAllocationChart(positions = []) {
+    if (!Array.isArray(positions)) {
+        console.error("Allocation data invalid:", positions);
+        return;
+    }
+    console.log("allocation data", analyticsData.allocation);
+    console.log("selected", analyticsFilters.allocation);
+    console.log(
+        "positions",
+        analyticsData.allocation?.[analyticsFilters.allocation]
+    );
     const ctx = document.getElementById("allocationChart");
     if (allocationChart) {
         allocationChart.destroy();
     }
+    
     allocationChart = new Chart(ctx, {
         type: "doughnut",
         data: {
+            
             labels: positions.map(
                 p => p.ticker
             ),
