@@ -44,6 +44,7 @@ function renderAnalytics() {
                 analyticsFilters.allocation,
                 analyticsData.allocation
             );
+    console.log(analyticsData.allocation);
     buildAllocationChart(
         analyticsData.allocation[analyticsFilters.allocation]
     );
@@ -171,6 +172,16 @@ function buildHistogram(trades) {
         const end = start + binSize;
         return `$${start.toFixed(0)}-$${end.toFixed(0)}`;
     });
+    if (trades.length === 0) return;
+    if (max === min) {
+
+    };
+    console.log(
+        "Histogram strategy:",
+        analyticsFilters.histogram,
+        "trade count:",
+        trades.length
+    );
     const ctx = document.getElementById("histogramChart");
     if (histogramChart) {
         histogramChart.destroy();
@@ -279,9 +290,7 @@ function buildAllocationChart(positions = []) {
         type: "doughnut",
         data: {
             
-            labels: positions.map(
-                p => p.ticker
-            ),
+            labels: positions.map(p => `${p.ticker} (${p.percent.toFixed(1)}%)`),
             datasets: [{
                 data:positions.map(
                     p => p.value
@@ -305,7 +314,8 @@ function buildAllocationChart(positions = []) {
                         label: (ctx) => {
                             const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
                             const pct = (ctx.raw / total) * 100;
-                            return `${ctx.label}: ${pct.toFixed(1)}%`;
+                            const ticker = ctx.label.split(" (")[0];
+                            return `${ticker}: ${pct.toFixed(1)}%`;
                         }
                     }
                 }

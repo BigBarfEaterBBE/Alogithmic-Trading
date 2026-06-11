@@ -108,6 +108,23 @@ def get_trades_data():
                 pos['avg_cost'] = 0
         realized_pnls.append(round(realized,2) if realized is not None else None)
     df['realized_pnl'] = realized_pnls
+    records = df.to_dict(orient="records")
+    print(
+        "PB strategy trades:",
+        len([
+            t for t in records
+            if t.get("strategy") == "PULLBACK_TREND"
+            and t.get("realized_pnl") is not None
+        ])
+    )
+    print(
+        "MR strategy trades:",
+        len([
+            t for t in records
+            if t.get("strategy") == "MEAN_REVERSION"
+            and t.get("realized_pnl") is not None
+        ])
+    )
     df = df.astype(object)
     df = df.where(pd.notnull(df), None)
     records = df.to_dict(orient="records")
@@ -372,6 +389,9 @@ def get_analytics_data():
         "PB": "PULLBACK_TREND",
         "MR": "MEAN_REVERSION"
     }
+    print("ALL:", len(trade_returns["ALL"]))
+    print("PB:", len(trade_returns["PB"]))
+    print("MR:", len(trade_returns["MR"]))
     strategy_stats = []
     for strategy in pivot.columns:
         print("PIVOT COLUMNS", pivot.columns.tolist())
@@ -439,27 +459,10 @@ def get_analytics_data():
             )
         else:
             avg_duration_response[key] = 0
-    allocation_data = get_allocation_data()
-    pb_symbols = {
-        pos.symbol
-        for pos in pb_client.get_all_positions()
-    }
-    mr_symbols = {
-        pos.symbol
-        for pos in mr_client.get_all_positions()
-    }
-
-    allocation_response = {
-        "ALL": allocation_data["allocation"],
-        "PB": [
-            p for p in allocation_data["allocation"]
-            if p["ticker"] in pb_symbols
-        ],
-        "MR": [
-            p for p in allocation_data["allocation"]
-            if p["ticker"] in mr_symbols
-        ]
-    }
+    allocation_response = get_allocation_data()
+    print("PB allocation:", allocation_response["PB"])
+    print("MR allocation:", allocation_response["MR"])
+    
     return {
         "drawdown": drawdown_data,
         "trade_returns": trade_returns,
@@ -468,74 +471,69 @@ def get_analytics_data():
         "avg_trade_duration": avg_duration_response,
         "strategy_stats": strategy_stats
     }
-
 def get_allocation_data():
     pb_positions = pb_client.get_all_positions()
     mr_positions = mr_client.get_all_positions()
 
-    allocation = {}
-    strategy_totals = {
-        "PB": 0,
-        "MR": 0
-    }
-    for strategy, positions in [
-        ("PB", pb_positions),
-        ("MR", mr_positions)
-    ]:
+    def build_allocations(positions):
+        total = sum(float(p.market_value) for p in positions)
+        data = []
         for pos in positions:
-            ticker = pos.symbol
             value = float(pos.market_value)
-            strategy_totals[strategy] += value
-            allocation[ticker] = (
-                allocation.get(ticker, 0) + value
-            )
-    total_portfolio = sum(allocation.values())
-    allocation_data = [
+            data.append({
+                "ticker": pos.symbol,
+                "value": round(value,2),
+                "percent": round(value / total * 100, 2) if total else 0
+            })
+        data.sort(
+            key = lambda x: x["value"], reverse =True
+        )
+        return data, total
+    pb_alloc, pb_equity = build_allocations(pb_positions)
+    mr_alloc, mr_equity = build_allocations(mr_positions)
+    pb_cash = float(pb_client.get_account().cash)
+    mr_cash = float(mr_client.get_account().cash)
+    def build_with_cash(alloc, equity, cash):
+        total = equity + cash
+        result = alloc.copy()
+        if cash > 0:
+            result.append({
+                "ticker": "CASH",
+                "value": round(cash,2),
+                "percent": round(cash / total * 100,2) if total > 0 else 0
+            })
+        for r in result:
+            r["percent"] = round(r["value"] / total * 100, 2) if total > 0 else 0
+        result.sort(key = lambda x: x["value"], reverse=True)
+        return result
+    pb_allocation = build_with_cash(pb_alloc, pb_equity, pb_cash)
+    mr_allocation = build_with_cash(mr_alloc, mr_equity, mr_cash)
+    combined = {}
+    for pos in pb_positions + mr_positions:
+        combined[pos.symbol] = combined.get(pos.symbol, 0) + float(pos.market_value)
+    total_equity = sum(combined.values())
+    total_cash = pb_cash + mr_cash
+    total_portfolio = total_equity + total_cash
+    all_allocation = [
         {
-            "ticker": ticker,
-            "value": round(value,2),
-            "percent": round(value / total_portfolio * 100, 2) if total_portfolio else 0
+            "ticker": t,
+            "value": round(v,2),
+            "percent": round(v / total_portfolio * 100, 2) if total_portfolio else 0
         }
-        for ticker, value in allocation.items()
+        for t, v in combined.items()
     ]
-    allocation_data.sort(
-        key = lambda x: x["value"],
-        reverse = True
-    )
-    strategy_exposure = [
-        {
-            "strategy": strategy,
-            "value": round(value,2),
-            "percent": round(value / total_portfolio * 100, 2) if total_portfolio else 0
-        }
-        for strategy, value in strategy_totals.items()
-    ]
-
-    cash = (
-        float(pb_client.get_account().cash) + float(mr_client.get_account().cash)
-    )
-
-    long_value = sum(
-        value for value in allocation.values()
-        if value > 0
-    )
-
-    short_value = abs(sum(
-        value for value in allocation.values()
-        if value < 0
-    ))
-
-    gross = long_value + short_value + cash
-
-    exposure = {
-        "long": round(long_value / gross * 100,2) if gross else 0,
-        "short": round(short_value / gross * 100,2) if gross else 0,
-        "cash": round(cash / gross * 100,2) if gross else 0
-    }
-
+    if total_cash > 0:
+        all_allocation.append({
+            "ticker": "CASH",
+            "value": round(total_cash, 2),
+            "percent": round(total_cash / total_portfolio * 100,2 )
+        })
+    all_allocation.sort(key=lambda x : x["value"], reverse=True)
     return {
-        "allocation": allocation_data,
-        "strategy_exposure": strategy_exposure,
-        "total_value": round(total_portfolio, 2),
-        "exposure": exposure
+        "ALL": all_allocation,
+        "PB": pb_allocation,
+        "MR": mr_allocation
     }
+    
+    
+
