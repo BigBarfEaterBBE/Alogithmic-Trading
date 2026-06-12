@@ -14,9 +14,32 @@ async function loadAnalytics() {
     const res = await fetch(
         "http://127.0.0.1:5000/api/analytics"
     );
+    try {
+        await loadKPIs();
+    } catch (err) {
+        console.error("KPIs failed:", err);
+    }
     analyticsData = await res.json();
     setupAnalyticsFilters();
     renderAnalytics();
+}
+
+async function loadKPIs() {
+    const res = await fetch(
+        "http://127.0.0.1:5000/api/kpis"
+    );
+    const data = await res.json();
+    console.log("KPI DATA:", data);
+    document.getElementById("fundNav").textContent = `$${data.fund_nav.toLocaleString()}`;
+    const pnlElement = document.getElementById("dailyPnl");
+    pnlElement.textContent = `${data.daily_pnl >= 0 ? "+" : ""}$${data.daily_pnl.toLocaleString()}`;
+    pnlElement.className = data.daily_pnl >= 0 ? "kpi-positive" : "kpi-negative";
+    const returnElement = document.getElementById("totalReturn");
+    returnElement.textContent = `${data.total_return >= 0 ? "+" : ""}${data.total_return.toFixed(2)}%`;
+    returnElement.className = data.total_return >= 0 ? "kpi-positive" : "kpi-negative";
+    const drawdownElement = document.getElementById("maxDrawdown");
+    drawdownElement.textContent = `${data.max_drawdown.toFixed(2)}%`;
+    drawdownElement.className = data.max_drawdown >= 0 ?"kpi-positive" : "kpi-negative";
 }
 
 function setupAnalyticsFilters() {

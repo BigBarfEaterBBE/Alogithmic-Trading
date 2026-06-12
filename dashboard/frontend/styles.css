@@ -1010,3 +1010,51 @@ h1 {
     font-weight: 700;
     text-shadow: 0 0 10px rgba(56,189,248,0.35);
 }
+
+.kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.kpi-card {
+    position: relative;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 22px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: transform 0.2s ease, broder-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56,189,248,0.35);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 30px rgba(56,189,248,0.14);
+}
+
+.kpi-label {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    font-weight: 700;;
+    color: rgba(255,255,255,0.45);
+    text-transform: uppercase;
+}
+
+.kpi-card h2 {
+    margin-top: 10px;
+    margin-bottom: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+}
+
+.kpi-positive {
+    color: #22c55e;
+}
+
+.kpi-negative {
+    color: #ef4444;
+}

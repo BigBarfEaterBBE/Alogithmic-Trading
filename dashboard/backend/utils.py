@@ -441,7 +441,12 @@ def get_analytics_data():
             "return_pct": round(return_pct, 2),
             "win_rate": round(win_rate,1),
             "trades": trade_count,
+            "wins": wins,
+            "losses": trade_count - wins,
             "avg_trade": round(avg_trade,2),
+            "total_pnl": round(sum(pnls), 2),
+            "best_trade": round(max(pnls),2) if pnls else 0,
+            "worst_trade": round(min(pnls), 2) if pnls else 0,
             "max_drawdown": round(max_dd,2)
         })
         
@@ -535,5 +540,52 @@ def get_allocation_data():
         "MR": mr_allocation
     }
     
-    
+def get_kpis():
+    equity_df = pd.read_csv(EQUITY_FILE)
+    equity_df["time"] = pd.to_datetime(
+        equity_df["time"],
+        format="mixed",
+        utc=True
+    )
+    equity_df = equity_df.sort_values("time")
+    pivot = equity_df.pivot_table(
+        index="time",
+        columns="strategy",
+        values="equity",
+        aggfunc="last"
+    ).ffill()
+
+    total_equity = pivot.sum(axis=1)
+    print("KPI start:", total_equity.iloc[0])
+    print("KPI end:", total_equity.iloc[-1])
+    if len(total_equity) == 0:
+        return {
+            "fund_nav": 0,
+            "daily_pnl": 0,
+            "total_return": 0,
+            "max_drawdown": 0
+        }
+    fund_nav = float(total_equity.iloc[-1])
+    valid_rows = pivot.dropna(subset=["MR", "PB"])
+    start_equity = (
+        valid_rows["MR"].iloc[0] + valid_rows["PB"].iloc[0]
+    )
+    end_equity = (
+        valid_rows["MR"].iloc[-1] + valid_rows["PB"].iloc[-1]
+    )
+    total_return = ((end_equity - start_equity) / start_equity * 100)
+    running_peak = total_equity.cummax()
+    drawdown = ((total_equity - running_peak) / running_peak * 100)
+    max_drawdown = float(drawdown.min())
+    if len(total_equity) >= 2:
+        daily_pnl = float(total_equity.iloc[-1] - total_equity.iloc[-2])
+    else:
+        daily_pnl = 0
+    return {
+        "fund_nav": round(fund_nav, 2),
+        "daily_pnl": round(daily_pnl,2),
+        "total_return": round(total_return, 2),
+        "max_drawdown": round(max_drawdown,2)
+    }
+
 

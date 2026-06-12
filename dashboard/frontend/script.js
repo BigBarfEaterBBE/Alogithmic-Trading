@@ -154,6 +154,7 @@ async function loadEquity(range = "5D") {
 
     const startValue = values[0];
     const endValue = values[values.length - 1];
+    console.log("Chart start:", startValue, "chartEnd", endValue)
     const positive = endValue >= startValue;
     const body = document.body
     document.body.classList.remove("profit", "loss");

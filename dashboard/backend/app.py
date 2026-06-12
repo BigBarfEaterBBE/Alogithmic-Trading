@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, send_from_directory
-from utils import get_equity_data, get_trades_data, combine_positions
+from utils import get_equity_data, get_trades_data, combine_positions, get_analytics_data, get_allocation_data, get_kpis
 
 from alpaca.trading.client import TradingClient
 
@@ -26,14 +26,6 @@ mr_client = TradingClient(
     MR_API_KEY,
     MR_SECRET_KEY,
     paper=True
-)
-
-from utils import (
-    get_equity_data,
-    get_trades_data,
-    combine_positions,
-    get_analytics_data,
-    get_allocation_data
 )
 
 app = Flask(__name__, static_folder="../frontend")
@@ -75,6 +67,10 @@ def static_files(path):
 @app.route("/api/analytics")
 def analytics():
     return jsonify(get_analytics_data())
+
+@app.route("/api/kpis")
+def kpis():
+    return jsonify(get_kpis())
 
 if __name__ == "__main__":
     app.run(debug=True)
