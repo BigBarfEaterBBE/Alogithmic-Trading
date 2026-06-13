@@ -633,7 +633,7 @@ def get_portfolio_monitor():
         "cash_percent": round(total_cash / total_portfolio * 100, 2) if total_portfolio else 0,
         "invested_percent": round(total_market_value / total_portfolio * 100, 2) if total_portfolio else 0,
         "largest_position": round(largest_position, 2),
-        "unrealized_pl": round(total_unrealized, 2),
+        "unrealized_pnl": round(total_unrealized, 2),
         "warnings": warnings
 
     }

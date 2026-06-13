@@ -232,7 +232,7 @@ for ticker in tickers:
         atr = row['atr']
 
         # DYNAMIC STOP LOSS 
-        stop_price = avg_entry - (atr*2)
+        stop_price = avg_entry - atr
 
         # Implementing partial profit levels
         tp1 = avg_entry * 1.04 # +2 %

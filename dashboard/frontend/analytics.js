@@ -69,7 +69,7 @@ async function loadPortfolioMonitor() {
     });
     let riskScore = 0;
     riskScore += data.largest_position;
-    if (data.cacsh_percent < 10) {
+    if (data.cash_percent < 10) {
         riskScore += 30;
     }
     else if (data.cash_percent < 20) {
@@ -80,7 +80,7 @@ async function loadPortfolioMonitor() {
     document.getElementById("riskScore").textContent = riskScore;
     const riskFill = document.getElementById("riskBarFill");
 
-    riskFill.style.width = `${riskSCore}%`;
+    riskFill.style.width = `${riskScore}%`;
 
     if (riskScore < 30) {
         riskFill.style.background = "#22c55e";

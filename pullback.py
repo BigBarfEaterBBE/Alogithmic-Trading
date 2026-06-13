@@ -326,6 +326,7 @@ while True:
                 atr = row['atr']
                 tp1 = avg_entry * 1.02
                 tp2 = avg_entry * 1.04
+                stop_price = avg_entry * 0.98
 
                 if price >= tp2:
                     sell_qty = shares
@@ -347,6 +348,16 @@ while True:
                         partial_taken_pb[ticker] = True
                         log_trade(ticker, "PARTIAL_SELL", price, sell_qty, "PULLBACK_TREND", notional=notional, profit=profit)
                         shares, avg_entry = get_position(pb_client, ticker)
+                elif price <= stop_price:
+                    sell_qty = shares
+                    profit = (price-avg_entry) * sell_qty
+                    notional = sell_qty * price
+                    order=  sell_stock(pb_client,ticker)
+                    if order:
+                        scale_level_pb[ticker] = 0
+                        partial_taken_pb[ticker] = False
+                        log_trade(ticker, "STOP_LOSS", price, sell_qty, "PULLBACK_TREND",notional=notional,profit=profit)
+                        print(f"{ticker} STOP LOSS")
         log_equity(pb_client, "PB")
         print("Sleeping...")
         time.sleep(300) # 5 minutes
