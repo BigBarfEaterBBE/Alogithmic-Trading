@@ -1058,3 +1058,110 @@ h1 {
 .kpi-negative {
     color: #ef4444;
 }
+
+.risk-section {
+    margin-top: 24px;
+}
+
+.risk-section h3 {
+    margin-bottom: 12px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+}
+
+.risk-warning {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.risk-warrning.warning {
+    background: rgba(245,158,11,.15);
+    border-left: 4px solid #f59e0b;
+    color: #fbbf24;
+}
+
+.risk-warning.critical {
+    background: rgba(239,68,68,.15);
+    border-left: 4px solid #3f4444;
+    color: #f87171;
+}
+
+.risk-warning.healthy {
+    background: rgba(34,197,94,0.15);
+    border-left: 4px soliid #22c55e;
+    color: #4ade80;
+}
+
+.monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(5,1fr);
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.duration-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 18px;
+    transition: all .25s ease;
+}
+
+.duration-box:hover {
+    transform: translateY(-3px);
+    border-color: rgba(59,130,246,.4);
+    box-shadow: 0 10px 30px rgba(59,130,246,.15);
+}
+
+.duration-box span {
+    display: block;
+    color: rgba(255,255,255,.55);
+    font-size: .75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.duratiaon-box h3 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+}
+
+.portfolio-monitor-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 28px;
+}
+
+.portfolio-risk {
+    margin-top: 12px;
+    margin-bottom: 28px;
+}
+
+.risk-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.risk-bar {
+    height: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+#riskBarFill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    transition: all .6s ease;
+}

@@ -581,7 +581,7 @@ async function loadAll() {
 }
 
 async function loadTickerBar() {
-    const res = await fetch("http://127.0.0.1:5000/api/prices");
+    const res = await fetch("http://127.0.0.1:5000/api/ticker-bar");
     const stocks = await res.json();
     track.innerHTML = "";
     track.style.display = "flex";

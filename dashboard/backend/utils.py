@@ -219,7 +219,7 @@ def get_mini_charts(tickers):
             ]
         return charts
     except Exception as e:
-        print(f"CHART ERROR {ticker}: {e}")
+        print(f"CHART ERROR: {e}")
         return {}
 
 def get_price_change_data(symbols):
@@ -256,8 +256,8 @@ def get_price_change_data(symbols):
             }
         return result
     except Exception as e:
-        print(f"PRICE ERROR {symbol}: {e}")
-        return []
+        print(f"PRICE ERROR: {e}")
+        return {}
 
 def get_analytics_data():
     print("USING UPDATED ANALYTICS FUNCTION")
@@ -578,7 +578,10 @@ def get_kpis():
     drawdown = ((total_equity - running_peak) / running_peak * 100)
     max_drawdown = float(drawdown.min())
     if len(total_equity) >= 2:
-        daily_pnl = float(total_equity.iloc[-1] - total_equity.iloc[-2])
+        today = total_equity.index[-1].date()
+        today_rows = total_equity[total_equity.index.date == today]
+        if len(today_rows) > 0:
+            daily_pnl = (today_rows.iloc[-1] - today_rows.iloc[0])
     else:
         daily_pnl = 0
     return {
@@ -588,4 +591,49 @@ def get_kpis():
         "max_drawdown": round(max_drawdown,2)
     }
 
+def get_portfolio_monitor():
+    pb_positions = pb_client.get_all_positions()
+    mr_positions = mr_client.get_all_positions()
 
+    all_positions = pb_positions + mr_positions
+    total_market_value = sum(float(p.market_value) for p in all_positions)
+    total_unrealized = sum(float(p.unrealized_pl) for p in all_positions)
+    pb_cash = float(pb_client.get_account().cash)
+    mr_cash = float(mr_client.get_account().cash)
+    total_cash = pb_cash + mr_cash
+    total_portfolio = (total_market_value + total_cash)
+    largest_position = 0
+    if total_portfolio > 0:
+        largest_position = max((float(p.market_value) / total_portfolio * 100 for p in all_positions), default=0)
+    warnings = []
+    if largest_position > 40:
+        warnings.append({
+            "type": "critical",
+            "message": f"Largest position is {largest_position:.1f}%"
+        })
+    elif largest_position > 25:
+        warnings.append({
+            "type": "warning",
+            "message": f"Position concentraation is {largest_position:.1f}%"
+        })
+    cash_percent = (total_cash / total_portfolio * 100 if total_portfolio else 0)
+    if cash_percent < 5:
+        warnings.append({
+            "type": "critical",
+            "message": f"Cash buffer only {cash_percent:.1f}%"
+        })
+    elif cash_percent < 15:
+        warnings.append({
+            "type": "warning",
+            "message": f"Cash allocation only {cash_percent:.1f}%"
+        })
+
+    return {
+        "positions": len(all_positions),
+        "cash_percent": round(total_cash / total_portfolio * 100, 2) if total_portfolio else 0,
+        "invested_percent": round(total_market_value / total_portfolio * 100, 2) if total_portfolio else 0,
+        "largest_position": round(largest_position, 2),
+        "unrealized_pl": round(total_unrealized, 2),
+        "warnings": warnings
+
+    }

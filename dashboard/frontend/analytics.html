@@ -132,6 +132,44 @@
                     <tbody id="strategyComparisonBody"></tbody>
                 </table>
             </div>
+            <div class="card portfolio-monitor-card">
+                <h2>Portfolio Health</h2>
+                <div class="portfolio-risk">
+                    <div class="riisk-header">
+                        <span>Portfolio Risk Score</span>
+                        <span id="riskScore">0</span>
+                    </div>
+                    <div class="risk-bar">
+                        <div id="riskBarFill"></div>
+                    </div>
+                </div>
+                <div class="monitor-grid">
+                    <div class="duration-box">
+                        <span>Positions</span>
+                        <h3 id="pmPositions">0</h3>
+                    </div>
+                    <div class="duration-box">
+                        <span>Invested</span>
+                        <h3 id="pmInvested">0%</h3>
+                    </div>
+                    <div class="duration-box">
+                        <span>Cash</span>
+                        <h3 id="pmCash">0%</h3>
+                    </div>
+                    <div class="duration-box">
+                        <span>Largest Position</span>
+                        <h3 id="pmLargest">0%</h3>
+                    </div>
+                    <div class="duration-box">
+                        <span>Unrealized P&L</span>
+                        <h3 id="pmPnL">$0</h3>
+                    </div>
+                </div>
+                <div class="risk-section">
+                    <h3>Risk Warnings</h3>
+                    <div id="riskWarnings"></div>
+                </div>
+            </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="analytics.js"></script>

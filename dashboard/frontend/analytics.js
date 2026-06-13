@@ -19,6 +19,11 @@ async function loadAnalytics() {
     } catch (err) {
         console.error("KPIs failed:", err);
     }
+    try {
+        await loadPortfolioMonitor()
+    } catch (err) {
+        console.error("Portfolio Manager failed:", err);
+    }
     analyticsData = await res.json();
     setupAnalyticsFilters();
     renderAnalytics();
@@ -40,6 +45,52 @@ async function loadKPIs() {
     const drawdownElement = document.getElementById("maxDrawdown");
     drawdownElement.textContent = `${data.max_drawdown.toFixed(2)}%`;
     drawdownElement.className = data.max_drawdown >= 0 ?"kpi-positive" : "kpi-negative";
+}
+
+async function loadPortfolioMonitor() {
+    const res = await fetch("http://127.0.0.1:5000/api/portfolio-monitor");
+    const data = await res.json();
+    document.getElementById("pmPositions").textContent = data.positions;
+    document.getElementById("pmInvested").textContent = `${data.invested_percent}%`;
+    document.getElementById("pmCash").textContent = `${data.cash_percent}%`;
+    document.getElementById("pmLargest").textContent = `${data.largest_position}%`;
+    const pnl = document.getElementById("pmPnL");
+    pnl.textContent = `${data.unrealized_pnl >= 0? "+" : ""}$${data.unrealized_pnl.toLocaleString()}`;
+    pnl.className = data.unrealized_pnl >= 0 ? "positive" : "negative";
+    document.getElementById("pmInvested").className = data.invested_percent > 80 ? "warning-text" : "";
+    document.getElementById("pmCash").className = data.cash_percent < 10 ? "negative" : "positive";
+    const warningContainer = document.getElementById("riskWarnings");
+    warningContainer.innerHTML = "";
+    data.warnings.forEach(warning => {
+        const div = document.createElement("div");
+        div.className = `risk-warning ${warning.type}`;
+        div.textContent = warning.message;
+        warningContainer.appendChild(div);
+    });
+    let riskScore = 0;
+    riskScore += data.largest_position;
+    if (data.cacsh_percent < 10) {
+        riskScore += 30;
+    }
+    else if (data.cash_percent < 20) {
+        riskScore += 15;
+    }
+
+    riskScore = Math.min(Math.round(riskScore), 100);
+    document.getElementById("riskScore").textContent = riskScore;
+    const riskFill = document.getElementById("riskBarFill");
+
+    riskFill.style.width = `${riskSCore}%`;
+
+    if (riskScore < 30) {
+        riskFill.style.background = "#22c55e";
+    }
+    else if (riskScore < 60) {
+        riskFill.style.background = "#f59e0b";
+    }
+    else {
+        riskFill.style.background = "#ef4444";
+    }
 }
 
 function setupAnalyticsFilters() {
