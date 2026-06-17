@@ -115,7 +115,7 @@ def sell_stock(client,ticker):
         submitted_order = client.submit_order(order)
         return submitted_order
     except Exception as e:
-        print(f"SELL FAILED for {ticker}")
+        print(f"SELL FAILED for {ticker}; {e}")
         return None
 
 def log_equity(client, name):

@@ -5,6 +5,7 @@ from pullback import (
     get_market_status,
     sleep_until_open
 )
+from scanner import get_ranked_watchlist
 
 from momentum_breakout import (
     run_breakout_strategy
@@ -19,10 +20,17 @@ MB_INTERVAL = 5 * 60
 while True:
     status = get_market_status()
     if status == "before_open":
+        tickers = get_ranked_watchlist(10)
+        with open("dashboard/watchlist.csv", "w") as f:
+            for ticker in tickers:
+                f.write(f"{ticker}\n")
+                
         sleep_until_open()
         continue
     if status == "after_close":
         print("Market closed")
+        with open("dashboard/watchlist.csv", "w") as f:
+            pass
         break
     current = datetime.now()
     mb_candle = current.replace(
@@ -31,12 +39,12 @@ while True:
         microsecond=0
     )
     pb_candle = current.replace(
-        minute=(current.minute // 15) * 5,
+        minute=(current.minute // 15) * 15,
         second = 0,
         microsecond=0
     )
     if mb_candle != last_mb_candle:
-        run_breakout_strategy
+        run_breakout_strategy()
         last_mb_candle = mb_candle
     if pb_candle != last_pb_candle:
         run_pullback_strategy()

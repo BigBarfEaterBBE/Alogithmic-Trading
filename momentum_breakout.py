@@ -22,19 +22,10 @@ MB_SECRET_KEY = confidential.MB_SECRET
 
 TIMEZONE = ZoneInfo("America/New_York")
 
-# predetermined for now, automate later
-TICKERS = [
-    "PLTR",
-    "RKLB",
-    "IONQ",
-    "ASTS",
-    "SOUN",
-    "QBTS",
-    "JOBY",
-    "ACHR",
-    "RGTI",
-    "HIMS"
-]
+def load_watchlist():
+    with open("dashboard/watchlist,csv") as f:
+        return [line.strip() for line in f]
+TICKERS = load_watchlist()
 
 RISK_PERCENT = 0.03
 MIN_TRADE_SIZE = 100
@@ -140,7 +131,7 @@ def add_indicators(df):
     df["volume_ratio"] = (df["volume"] / df["vol_avg"])
     df["ma50"] = (df["close"].rolling(50).mean())
     df["breakout_signal"] = (
-        (df["close"] > df["high_20"].shift(1))
+        (df["close"] > df["high_78"].shift(1))
         &
         (df["volume_ratio"] > 2)
         &
